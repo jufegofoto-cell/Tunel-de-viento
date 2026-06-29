@@ -1,0 +1,37 @@
+{
+  "name": "tunel-de-viento",
+  "version": "1.0.0",
+  "description": "Tunel de Viento - Simulacion CFD 2D para analisis bioclimatico (escritorio)",
+  "author": "Universidad de San Buenaventura - Pasto",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --x64"
+  },
+  "devDependencies": {
+    "electron": "^42.4.1",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "co.edu.usb.tunelviento",
+    "productName": "TunelDeViento",
+    "copyright": "Universidad de San Buenaventura - Pasto",
+    "directories": { "output": "dist" },
+    "files": [ "src/**/*", "Tunel_de_viento_completo.html", "package.json" ],
+    "compression": "maximum",
+    "win": {
+      "target": [
+        { "target": "portable", "arch": ["x64"] },
+        { "target": "nsis", "arch": ["x64"] }
+      ]
+    },
+    "portable": { "artifactName": "TunelDeViento-${version}-portable.exe" },
+    "nsis": {
+      "oneClick": false, "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "TunelDeViento-${version}-setup.exe", "shortcutName": "Tunel de Viento"
+    }
+  }
+}
