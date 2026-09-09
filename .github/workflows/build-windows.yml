@@ -23,6 +23,24 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+
+      # El HTML es el producto: si falta o pierde su autocontencion, el .exe
+      # se compila igual pero arranca roto. Se verifica antes de gastar 5 min
+      # de compilacion.
+      - name: Verificar el HTML autocontenido
+        shell: pwsh
+        run: |
+          $f = 'Tunel_de_viento_completo.html'
+          if (-not (Test-Path $f)) { throw "Falta $f" }
+          $t = Get-Content $f -Raw
+          if ($t.Length -lt 150000) { throw "El HTML pesa $($t.Length) bytes: parece la version antigua o sin fuentes" }
+          if ($t -match 'src="http|href="http|@import') { throw "El HTML tiene dependencias de red: no funcionaria sin conexion" }
+          if (([regex]::Matches($t,'@font-face')).Count -ne 3) { throw "Faltan las fuentes incrustadas" }
+          foreach ($m in 'multigrid','MUSCL','Smagorinsky','domSel','tipbox') {
+            if ($t -notmatch $m) { throw "El HTML no contiene '$m': no es la version 2" }
+          }
+          Write-Host "HTML verificado: $($t.Length) bytes, autocontenido, version 2"
+
       - name: Install dependencies
         run: npm install
       - name: Build portable + installer (x64)
@@ -36,3 +54,21 @@ jobs:
           name: ${{ github.ref_type == 'tag' && github.ref_name || 'Última compilación (latest)' }}
           files: dist/*.exe
           fail_on_unmatched_files: true
+          body: |
+            **Túnel de Viento 2.0** — simulación CFD 2D para análisis bioclimático.
+            Universidad de San Buenaventura · Pasto.
+
+            Dos descargas: `portable` (un solo .exe, no instala nada) y `setup` (instalador con acceso directo).
+            No requiere WebView2 ni ningún runtime: Electron incluye su propio Chromium.
+
+            ### Novedades frente a la 1.0
+            - **Solver nuevo.** Advección MUSCL de 2.º orden con limitador van Leer en lugar de upwind de 1.er orden, y cierre Smagorinsky en lugar del k-ε (que quedaba saturado en el tope de estabilidad en el 99,9 % de las celdas y actuaba como viscosidad constante). Conserva alrededor del doble de estructura: los vórtices se ven desprenderse en vez de emborronarse.
+            - **Presión por multigrid geométrico** en vez de 25 barridos SOR. El residuo `|∇·u|·h/U₀` baja de ~1,3e-2 a ~1e-4 y el coste es 3–4 veces menor. En malla ligera la app pasa de 1,2 a más de 30 fotogramas por segundo.
+            - **Tipo de dominio conmutable**: conducto, planta en terreno abierto o sección con suelo. Con bordes abiertos desaparece el efecto tobera que producían las paredes: en un caso con 77 % de bloqueo, la aceleración en el hueco cae de ×4,7 a ×0,7.
+            - **Viscosidad utilizable.** El selector antiguo no llegaba al solver y su rango era invisible. Ahora se ajusta por Reynolds objetivo o por fluido real, con indicador de Reynolds de celda y aviso cuando la difusión numérica toma el control.
+            - **Barandillas.** Indicadores de bloqueo, distancia a la salida en múltiplos del frente y tiempo estimado hasta el estado estacionario, con avisos cuando el montaje deja de ser representativo.
+            - **Malla seleccionable** de 192×112 a 960×560, con la geometría remuestreada al cambiar.
+            - **Exportación PNG** hasta 5760×3360 con barra de escala y pie de parámetros, y diálogo de guardado.
+            - Seis paletas de color, escala normalizada por percentil 99, globos de ayuda en cada control, y fuentes incrustadas para que la tipografía sea correcta sin instalar nada.
+
+            Los resultados son **cualitativos**: sirven para intuición, docencia y comparación temprana, no para dimensionamiento. El alcance y las restricciones están detallados en «Acerca de» dentro de la aplicación.
