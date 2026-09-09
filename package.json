@@ -18,20 +18,45 @@
     "appId": "co.edu.usb.tunelviento",
     "productName": "TunelDeViento",
     "copyright": "Universidad de San Buenaventura - Pasto",
-    "directories": { "output": "dist" },
-    "files": [ "src/**/*", "Tunel_de_viento_completo.html", "package.json" ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "Tunel_de_viento_completo.html",
+      "package.json"
+    ],
     "compression": "maximum",
     "win": {
       "target": [
-        { "target": "portable", "arch": ["x64"] },
-        { "target": "nsis", "arch": ["x64"] }
-      ]
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
     },
-    "portable": { "artifactName": "TunelDeViento-${version}-portable.exe" },
+    "portable": {
+      "artifactName": "TunelDeViento-${version}-portable.exe"
+    },
     "nsis": {
-      "oneClick": false, "perMachine": false,
+      "oneClick": false,
+      "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "artifactName": "TunelDeViento-${version}-setup.exe", "shortcutName": "Tunel de Viento"
+      "artifactName": "TunelDeViento-${version}-setup.exe",
+      "shortcutName": "Tunel de Viento",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico"
     }
   }
 }
