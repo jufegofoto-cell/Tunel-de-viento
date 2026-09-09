@@ -1,7 +1,7 @@
 {
   "name": "tunel-de-viento",
-  "version": "1.0.0",
-  "description": "Tunel de Viento - Simulacion CFD 2D para analisis bioclimatico (escritorio)",
+  "version": "2.0.0",
+  "description": "Tunel de Viento - Simulacion CFD 2D para analisis bioclimatico (escritorio). Malla MAC, adveccion MUSCL de 2.o orden, cierre Smagorinsky y presion por multigrid geometrico.",
   "author": "Universidad de San Buenaventura - Pasto",
   "license": "UNLICENSED",
   "private": true,
