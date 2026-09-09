@@ -26,6 +26,9 @@ function createMainWindow() {
     // despliegan en el flujo; por debajo de 1180 px el lienzo queda estrecho.
     width: 1600, height: 980, minWidth: 1180, minHeight: 760,
     backgroundColor: '#f1eee6',
+    // El .exe empaquetado ya lleva el icono incrustado; esto es para que la
+    // ventana y la barra de tareas lo muestren también al correr con npm start.
+    icon: path.join(__dirname, 'icon.png'),
     title: 'Túnel de Viento ' + APP_VERSION,
     show: false,
     webPreferences: {
