@@ -41,12 +41,37 @@ jobs:
           }
           Write-Host "HTML verificado: $($t.Length) bytes, autocontenido, version 2"
 
+      # El icono se necesita al final del build (portable + NSIS). Sin esta
+      # comprobacion el fallo aparece despues de descargar Electron, NSIS y
+      # 7zip y de compilar los dos objetivos: varios minutos tirados.
+      - name: Verificar los iconos
+        shell: pwsh
+        run: |
+          $ico = 'build/icon.ico'
+          $png = 'src/icon.png'
+          if (-not (Test-Path $ico)) {
+            throw "Falta $ico. El .ico va en la carpeta build/ del repositorio (crearla si no existe), no en la raiz."
+          }
+          if (-not (Test-Path $png)) { throw "Falta $png" }
+          $b = [System.IO.File]::ReadAllBytes($ico)
+          if ($b.Length -lt 20000) { throw "$ico pesa $($b.Length) bytes: parece corrupto (subido como texto en vez de binario)" }
+          if ($b[0] -ne 0 -or $b[1] -ne 0 -or $b[2] -ne 1 -or $b[3] -ne 0) { throw "$ico no tiene cabecera ICO valida" }
+          $n = [BitConverter]::ToUInt16($b, 4)
+          $tam = @()
+          for ($i = 0; $i -lt $n; $i++) {
+            $o = 6 + $i * 16
+            $w = $b[$o]; if ($w -eq 0) { $w = 256 }
+            $tam += $w
+          }
+          if ($tam -notcontains 256) { throw "$ico no incluye la entrada de 256 px que exige electron-builder" }
+          Write-Host "Iconos verificados: $ico con $n entradas ($($tam -join ', ') px)"
+
       - name: Install dependencies
         run: npm install
+      # npm run dist lleva --publish never: el release lo sube el paso
+      # siguiente, no electron-builder. Por eso aqui no hace falta GH_TOKEN.
       - name: Build portable + installer (x64)
         run: npm run dist
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Publish to Release
         uses: softprops/action-gh-release@v2
         with:
