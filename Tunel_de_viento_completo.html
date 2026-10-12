@@ -196,6 +196,11 @@ input[type=range]{ width:100%; accent-color:var(--accent); }
                 <button class="btn" onclick="openAbout()">ℹ Acerca de</button>
             </div>
             <input type="file" id="pngFileInput" accept="image/png" style="display:none" onchange="loadPNGObstacle(event)">
+            <div class="field" style="margin-top:13px;">
+                <label class="fld">Grosor del pincel · <span id="brushTag">2,0 m</span></label>
+                <input type="range" id="brushSize" min="0.2" max="8" step="0.1" value="2" oninput="syncBrush()">
+                <p class="help" id="brushHint" style="margin-top:5px;"></p>
+            </div>
             <p class="help" style="margin-top:9px;">Clic izquierdo dibuja muro · derecho borra · arrastrar pinta continuo.</p>
         </div>
 
@@ -1119,6 +1124,7 @@ function changeMesh() {
     wallElapsedMs = 0; wallLastTick = null;
     resetParticles();
     syncViscosity();
+    syncBrush();
     initialDirty = true;
 }
 
@@ -1560,14 +1566,40 @@ function buildLUT(name) {
 function setColormap(name) { cmapName = name; buildLUT(name); }
 buildLUT(cmapName);
 
+// Se rasteriza a la resolucion del solver y lo escala el lienzo, igual que el
+// campo. Con fillRect por celda serian 344 000 llamadas por fotograma y no se
+// podria repintar en vivo mientras se dibuja.
 function drawInitialScreen() {
+    const data = fieldImg.data;
+    for (let j = 0; j < NY; j++) {
+        const row = (NY - 1 - j) * NX, src = j * NX;
+        for (let i = 0; i < NX; i++) {
+            const q = (row + i) * 4;
+            const v = solid[src + i] ? 255 : 0;
+            data[q] = v; data[q + 1] = v; data[q + 2] = v; data[q + 3] = 255;
+        }
+    }
+    fieldCtx.putImageData(fieldImg, 0, 0);
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    const cw = canvas.width / NX, ch = canvas.height / NY;
-    ctx.fillStyle = '#ffffff';
-    for (let j = 0; j < NY; j++)
-        for (let i = 0; i < NX; i++)
-            if (solid[idx(i, j)]) ctx.fillRect(i * cw, (NY - 1 - j) * ch, cw + 1, ch + 1);
+    ctx.imageSmoothingEnabled = false;          // bordes nitidos al dibujar
+    ctx.drawImage(fieldCanvas, 0, 0, canvas.width, canvas.height);
+}
+
+// El circulo guia muestra el tamano REAL del pincel sobre el dominio, no un
+// radio fijo: es lo que hace util el deslizador.
+function drawBrushCursor() {
+    if (!showBrushCursor || brushCursorX < 0 || brushCursorY < 0) return;
+    const r = Math.max(4, (0.5 * brushSizeM / WIDTH_M) * canvas.width);
+    ctx.beginPath(); ctx.arc(brushCursorX, brushCursorY, r, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath(); ctx.arc(brushCursorX, brushCursorY, r * 0.3, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 1; ctx.stroke();
+    const cs = Math.max(5, r * 0.55);
+    ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 1; ctx.beginPath();
+    ctx.moveTo(brushCursorX - cs, brushCursorY); ctx.lineTo(brushCursorX + cs, brushCursorY);
+    ctx.moveTo(brushCursorX, brushCursorY - cs); ctx.lineTo(brushCursorX, brushCursorY + cs);
+    ctx.stroke();
 }
 
 // Rellena fieldImg con el campo activo normalizado por percentil 99
@@ -1640,9 +1672,18 @@ function drawScene(g, W, H, opts) {
     }
 }
 
+let lastCurKey = '';
 function render() {
     if (!hasStarted) {
-        if (initialDirty) { drawInitialScreen(); initialDirty = false; }
+        // Repinta cuando cambia la geometria o se mueve el cursor; con el raton
+        // quieto no gasta nada.
+        const curKey = showBrushCursor ? (brushCursorX + ',' + brushCursorY) : 'off';
+        if (initialDirty || curKey !== lastCurKey) {
+            drawInitialScreen();
+            drawBrushCursor();
+            initialDirty = false;
+            lastCurKey = curKey;
+        }
         return;
     }
     paintField();
@@ -1651,18 +1692,7 @@ function render() {
         particles: true
     });
 
-    if (showBrushCursor && brushCursorX >= 0 && brushCursorY >= 0) {
-        const r = 8;
-        ctx.beginPath(); ctx.arc(brushCursorX, brushCursorY, r, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 2; ctx.stroke();
-        ctx.beginPath(); ctx.arc(brushCursorX, brushCursorY, r * 0.3, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1; ctx.stroke();
-        const cs = 5;
-        ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.beginPath();
-        ctx.moveTo(brushCursorX - cs, brushCursorY); ctx.lineTo(brushCursorX + cs, brushCursorY);
-        ctx.moveTo(brushCursorX, brushCursorY - cs); ctx.lineTo(brushCursorX, brushCursorY + cs);
-        ctx.stroke();
-    }
+    drawBrushCursor();
 }
 
 // ---------- exportación PNG en alta resolución ----------
@@ -1861,8 +1891,25 @@ function getCanvasIJ(e) {
     return [i, j];
 }
 
+// El grosor se fija en METROS, no en celdas: asi un muro de 0,5 m sigue
+// midiendo 0,5 m al cambiar de malla, en vez de engordar o adelgazar solo.
+let brushSizeM = 2.0;
+function brushRadiusCells() { return Math.max(1, Math.round(0.5 * brushSizeM / dx)); }
+
+function syncBrush() {
+    brushSizeM = parseFloat(document.getElementById('brushSize').value) || 2;
+    const r = brushRadiusCells();
+    const real = (2 * r + 1) * dx;
+    document.getElementById('brushTag').textContent = brushSizeM.toFixed(1).replace('.', ',') + ' m';
+    const hint = document.getElementById('brushHint');
+    hint.textContent = 'Trazo real ' + real.toFixed(2).replace('.', ',') + ' m · ' +
+                       (2 * r + 1) + ' celdas de ' + dx.toFixed(3).replace('.', ',') + ' m';
+    hint.style.color = (real > brushSizeM * 1.6) ? '#b5843c' : '';
+    initialDirty = true;
+}
+
 function paintAt(i, j) {
-    const radius = Math.max(2, Math.round(NX / 60));
+    const radius = brushRadiusCells();
     for (let di = -radius; di <= radius; di++) {
         for (let dj = -radius; dj <= radius; dj++) {
             if (di*di + dj*dj <= radius*radius) {
@@ -1903,6 +1950,7 @@ function drawObstacle(e) {
     }
     lastDrawI = i;
     lastDrawJ = j;
+    initialDirty = true;   // sin esto el muro entra en "solid" pero el lienzo no se repinta
 }
 
 // ========== IMPORTAR PNG ==========
@@ -2202,6 +2250,7 @@ fitCanvas();
 
 initParticles(3000);
 syncViscosity();
+syncBrush();
 loop();
 
 console.log("🌪️ Túnel de Viento iniciado");
