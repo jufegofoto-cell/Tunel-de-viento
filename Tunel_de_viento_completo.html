@@ -102,8 +102,8 @@ input[type=number]:focus, select:focus{ outline:none; border-color:var(--accent)
 
 input[type=range]{ width:100%; accent-color:var(--accent); }
 
-.row-toggle{ display:flex; align-items:center; justify-content:space-between; padding:6px 0; font-size:12px; color:var(--ink); }
-.switch{ position:relative; width:36px; height:20px; flex:0 0 auto; }
+.row-toggle{ cursor:pointer; user-select:none; display:flex; align-items:center; justify-content:space-between; padding:6px 0; font-size:12px; color:var(--ink); }
+.switch{ position:relative; display:inline-block; width:36px; height:20px; flex:0 0 auto; }
 .switch input{ position:absolute; opacity:0; width:0; height:0; }
 .switch .track{ position:absolute; inset:0; background:#cdc6b6; border-radius:11px; transition:.18s; cursor:pointer; }
 .switch input:checked + .track{ background:var(--accent); }
@@ -336,10 +336,10 @@ input[type=range]{ width:100%; accent-color:var(--accent); }
                 <label class="fld">Partículas · <span id="particleCount">3000</span></label>
                 <input type="range" id="numParticles" min="0" max="10000" step="500" value="3000">
             </div>
-            <div class="row-toggle"><span>Vectores de velocidad</span>
-                <span class="switch"><input type="checkbox" id="showVectors" onchange="toggleVectors()"><span class="track"></span></span></div>
-            <div class="row-toggle"><span>Líneas de corriente</span>
-                <span class="switch"><input type="checkbox" id="showStreamlines" checked onchange="toggleStreamlines()"><span class="track"></span></span></div>
+            <label class="row-toggle"><span>Vectores de velocidad</span>
+                <span class="switch"><input type="checkbox" id="showVectors" onchange="toggleVectors()"><span class="track"></span></span></label>
+            <label class="row-toggle"><span>Líneas de corriente</span>
+                <span class="switch"><input type="checkbox" id="showStreamlines" checked onchange="toggleStreamlines()"><span class="track"></span></span></label>
             <div class="field" style="margin-top:13px;">
                 <label class="fld">Paleta de color</label>
                 <select id="cmapSel" onchange="setColormap(this.value)">
@@ -366,8 +366,8 @@ input[type=range]{ width:100%; accent-color:var(--accent); }
                     <div class="color-labels"><span>0 s⁻¹</span><span id="vortLegendMax">5 s⁻¹</span></div>
                 </div>
             </div>
-            <div class="row-toggle"><span>Suavizar interpolación</span>
-                <span class="switch"><input type="checkbox" id="smoothField" checked><span class="track"></span></span></div>
+            <label class="row-toggle"><span>Suavizar interpolación</span>
+                <span class="switch"><input type="checkbox" id="smoothField" checked><span class="track"></span></span></label>
         </div>
 
         <div class="section">
@@ -380,8 +380,8 @@ input[type=range]{ width:100%; accent-color:var(--accent); }
                     <option value="5760">5760 × 3360 px</option>
                 </select>
             </div>
-            <div class="row-toggle"><span>Incluir pie con parámetros</span>
-                <span class="switch"><input type="checkbox" id="pngCaption" checked><span class="track"></span></span></div>
+            <label class="row-toggle"><span>Incluir pie con parámetros</span>
+                <span class="switch"><input type="checkbox" id="pngCaption" checked><span class="track"></span></span></label>
             <div class="btns" style="margin-top:8px;">
                 <button class="btn primary" onclick="exportPNG()">📸 Guardar PNG</button>
             </div>
@@ -399,7 +399,8 @@ input[type=range]{ width:100%; accent-color:var(--accent); }
             <div class="info-item"><span class="info-label">Cierre activo</span><span class="info-value" id="turbState">—</span></div>
             <div class="info-item"><span class="info-label">Vel. máx</span><span class="info-value" id="maxVel">0.0 m/s</span></div>
             <div class="info-item"><span class="info-label">Subpasos</span><span class="info-value" id="nsub">—</span></div>
-            <div class="info-item"><span class="info-label">FPS</span><span class="info-value" id="fps">0</span></div>
+            <div class="info-item"><span class="info-label">Ritmo</span><span class="info-value" id="fps">0</span></div>
+            <div class="info-item"><span class="info-label">ms paso · part. · render</span><span class="info-value" id="perfMs">—</span></div>
             <div class="info-item"><span class="info-label">Obstáculos</span><span class="info-value" id="obstacleCount">0</span></div>
             <p class="help" id="geoWarn" style="margin-top:8px;display:none;"></p>
             <p class="help" id="reWarn" style="margin-top:8px;color:#b5843c;display:none;"></p>
@@ -412,7 +413,7 @@ input[type=range]{ width:100%; accent-color:var(--accent); }
             <div class="info-item"><span class="info-label">Barridos (τ)</span><span class="info-value" id="flowThrough">0.00</span></div>
             <div class="info-item"><span class="info-label">Δ Vel. máx</span><span class="info-value" id="convergence">—</span></div>
             <div class="info-item"><span class="info-label">Estado</span><span class="info-value" id="convStatus">—</span></div>
-            <div class="info-item"><span class="info-label">Residuo div·h/U₀</span><span class="info-value" id="divRes">—</span></div>
+            <div class="info-item"><span class="info-label">Residuo div·h/U₀ (media)</span><span class="info-value" id="divRes">—</span></div>
             <div class="info-item"><span class="info-label">Falta para τ = 4</span><span class="info-value" id="etaTau">—</span></div>
             <p class="help" id="etaHint" style="margin-top:8px;color:#b5843c;display:none;"></p>
         </div>
@@ -487,7 +488,9 @@ input[type=range]{ width:100%; accent-color:var(--accent); }
 <script>
 // ========== CONFIGURACIÓN ==========
 const canvas = document.getElementById("mainCanvas");
-const ctx = canvas.getContext("2d", { willReadFrequently: true });
+// Sin willReadFrequently: este contexto nunca se lee con getImageData, y esa
+// opción hace que Chrome lo mantenga en CPU (escalado de 3,4 Mpx por software).
+const ctx = canvas.getContext("2d");
 
 const WIDTH_M = 60;
 const HEIGHT_M = 35;
@@ -500,7 +503,9 @@ const HEIGHT_M = 35;
 // y son divisibles por 2 varias veces, requisito del multigrid geométrico.
 let SIM_NX = 768;
 let SIM_NY = 448;
-const SIM_VCYCLES = 4;   // ciclos V del multigrid por subpaso
+// Ciclos V del multigrid: los decide el solver (4 con bordes de pared, 10 con
+// algún borde abierto). Antes la app forzaba 4 siempre y el modo abierto corría
+// con una presión mal resuelta.
 // ====================================================================
 
 let NX = SIM_NX;
@@ -568,6 +573,32 @@ function makeSolver(opts) {
 
   const uSolid = (i, j) => (i > 0 && solid[idx(i - 1, j)]) || (i < NX && solid[idx(i, j)]);
   const vSolid = (i, j) => (j > 0 && solid[idx(i, j - 1)]) || (j < NY && solid[idx(i, j)]);
+
+  // Máscaras de caras sólidas, precalculadas al cambiar la geometría. Antes
+  // uSolid/vSolid se evaluaban en cada cara de cada subpaso (momento, contorno
+  // y proyección); ahora es una lectura de byte. Las listas permiten anular
+  // solo las caras sólidas en applyBC en vez de recorrer todas.
+  const uSol = new Uint8Array((NX + 1) * NY);
+  const vSol = new Uint8Array(NX * (NY + 1));
+  let uSolList = new Int32Array(0), vSolList = new Int32Array(0);
+  let solidCount = 0;
+  function buildFaceMasks() {
+    let nu_ = 0, nv_ = 0;
+    for (let j = 0; j < NY; j++)
+      for (let i = 0; i <= NX; i++) {
+        const s = uSolid(i, j) ? 1 : 0;
+        uSol[uIdx(i, j)] = s; nu_ += s;
+      }
+    for (let j = 0; j <= NY; j++)
+      for (let i = 0; i < NX; i++) {
+        const s = vSolid(i, j) ? 1 : 0;
+        vSol[vIdx(i, j)] = s; nv_ += s;
+      }
+    uSolList = new Int32Array(nu_); vSolList = new Int32Array(nv_);
+    let a = 0, b = 0;
+    for (let f = 0; f < uSol.length; f++) if (uSol[f]) uSolList[a++] = f;
+    for (let f = 0; f < vSol.length; f++) if (vSol[f]) vSolList[b++] = f;
+  }
 
   let U0 = opts.U0 || 8;
   let VMAX = 12 * U0;
@@ -744,13 +775,13 @@ function makeSolver(opts) {
   function lateralFaces(vArr) {
     const eps = 0.1 * U0 + 1e-9;
     for (let i = 0; i < NX; i++) {
-      if (openBot && !vSolid(i, 0)) {
+      if (openBot && !vSol[i]) {
         const vi = vArr[vIdx(i, 1)];
         const entra = vi > 0 ? vi : 0;               // normal saliente -y
         vArr[vIdx(i, 0)] = vi * (1 - entra / (entra + eps));
       } else vArr[vIdx(i, 0)] = 0;
 
-      if (openTop && !vSolid(i, NY)) {
+      if (openTop && !vSol[NY * NX + i]) {
         const vi = vArr[vIdx(i, NY - 1)];
         const entra = vi < 0 ? -vi : 0;              // normal saliente +y
         vArr[vIdx(i, NY)] = vi * (1 - entra / (entra + eps));
@@ -765,12 +796,8 @@ function makeSolver(opts) {
       uf[uIdx(NX, j)] = uf[uIdx(NX - 1, j)];
     }
     lateralFaces(vf);
-    for (let j = 0; j < NY; j++)
-      for (let i = 0; i <= NX; i++)
-        if (uSolid(i, j)) uf[uIdx(i, j)] = 0;
-    for (let j = 0; j <= NY; j++)
-      for (let i = 0; i < NX; i++)
-        if (vSolid(i, j)) vf[vIdx(i, j)] = 0;
+    for (let k = 0; k < uSolList.length; k++) uf[uSolList[k]] = 0;
+    for (let k = 0; k < vSolList.length; k++) vf[vSolList[k]] = 0;
   }
 
   // ---------- longitud característica y Reynolds ----------
@@ -802,6 +829,8 @@ function makeSolver(opts) {
       distIn = imin * dx;
       distOut = (NX - 1 - imax) * dx;
     }
+    solidCount = n;
+    buildFaceMasks();
     coarsenMasks();
     geomDirty = false;
     applyBC();
@@ -872,7 +901,7 @@ function makeSolver(opts) {
 
       for (let i = 1; i < NX; i++) {
         const f = rU + i;
-        if (uSolid(i, j)) { ufs[f] = 0; continue; }
+        if (uSol[f]) { ufs[f] = 0; continue; }
         const u = uf[f];
 
         let im2, im1, ip1, ip2;
@@ -917,7 +946,7 @@ function makeSolver(opts) {
 
       for (let i = 0; i < NX; i++) {
         const f = rV + i;
-        if (vSolid(i, j)) { vfs[f] = 0; continue; }
+        if (vSol[f]) { vfs[f] = 0; continue; }
         const v = vf[f];
 
         let im2, im1, ip1, ip2;
@@ -971,13 +1000,13 @@ function makeSolver(opts) {
     for (let j = 0; j < NY; j++)
       for (let i = 1; i < NX; i++) {
         const f = uIdx(i, j);
-        if (uSolid(i, j)) { uf[f] = 0; continue; }
+        if (uSol[f]) { uf[f] = 0; continue; }
         uf[f] = ufs[f] - curDt * (p[idx(i, j)] - p[idx(i - 1, j)]) / dx;
       }
     for (let j = 1; j < NY; j++)
       for (let i = 0; i < NX; i++) {
         const f = vIdx(i, j);
-        if (vSolid(i, j)) { vf[f] = 0; continue; }
+        if (vSol[f]) { vf[f] = 0; continue; }
         vf[f] = vfs[f] - curDt * (p[idx(i, j)] - p[idx(i, j - 1)]) / dy;
       }
   }
@@ -1050,6 +1079,7 @@ function makeSolver(opts) {
     setLateral(m) { lateral = m; applyLateralMode(); reset(); updateGeometry(); },
     get lateral() { return lateral; },
     get blockage() { return blockage; },
+    get solidCount() { return solidCount; },
     get frontalM() { return frontalM; },
     get distIn() { return distIn; },
     get distOut() { return distOut; },
@@ -1123,6 +1153,7 @@ function changeMesh() {
     simTime = 0; flowThroughs = 0; convergence = 0; prevMaxVel = 0;
     wallElapsedMs = 0; wallLastTick = null;
     resetParticles();
+    needDerived = true; scaleSnap = true;
     syncViscosity();
     syncBrush();
     initialDirty = true;
@@ -1152,30 +1183,34 @@ let simTime = 0;
 let flowThroughs = 0;
 let prevMaxVel = 0;
 let convergence = 0;
-let minPressure = 0;
-let maxPressure = 0;
-let frameCount = 0;
-let lastFPSUpdate = Date.now();
 
 // ========== PARTÍCULAS ==========
+// Cada partícula guarda su estela en un búfer circular de Float32Array: sin
+// objetos {x,y} por punto, sin trail.shift() y sin recolección de basura.
+// Al reiniciarse se reutiliza el mismo objeto en vez de crear uno nuevo.
+const TRAIL = 50;
 let particles = [];
 
-function initParticles(count) {
-    particles = [];
-    for (let i = 0; i < count; i++) {
-        particles.push(createParticle());
-    }
+function newParticle() {
+    const pt = { x: 0, y: 0, age: 0, stuckCounter: 0,
+                 tx: new Float32Array(TRAIL), ty: new Float32Array(TRAIL), th: 0, tn: 0 };
+    respawn(pt);
+    return pt;
 }
 
-function createParticle() {
+function respawn(pt) {
     let x, y, attempts = 0;
     do {
         x = Math.random() * WIDTH_M;
         y = Math.random() * HEIGHT_M;
         attempts++;
     } while (isSolid(x, y) && attempts < 50);
-    
-    return { x, y, age: 0, stuckCounter: 0, trail: [] };
+    pt.x = x; pt.y = y; pt.age = 0; pt.stuckCounter = 0; pt.th = 0; pt.tn = 0;
+}
+
+function initParticles(count) {
+    particles = [];
+    for (let i = 0; i < count; i++) particles.push(newParticle());
 }
 
 function isSolid(x, y) {
@@ -1185,102 +1220,54 @@ function isSolid(x, y) {
     return solid[idx(i, j)] === 1;
 }
 
-function getVelocityAt(x, y) {
-    let i = Math.floor(x / dx);
-    let j = Math.floor(y / dy);
-    i = Math.max(0, Math.min(NX-2, i));
-    j = Math.max(0, Math.min(NY-2, j));
-    
-    let fx = (x - i*dx) / dx;
-    let fy = (y - j*dy) / dy;
-    
-    let u00 = u[idx(i, j)];
-    let u01 = u[idx(i, j+1)];
-    let u10 = u[idx(i+1, j)];
-    let u11 = u[idx(i+1, j+1)];
-    
-    let v00 = v[idx(i, j)];
-    let v01 = v[idx(i, j+1)];
-    let v10 = v[idx(i+1, j)];
-    let v11 = v[idx(i+1, j+1)];
-    
-    let u_interp = (1-fx)*(1-fy)*u00 + fx*(1-fy)*u10 + (1-fx)*fy*u01 + fx*fy*u11;
-    let v_interp = (1-fx)*(1-fy)*v00 + fx*(1-fy)*v10 + (1-fx)*fy*v01 + fx*fy*v11;
-    
-    return [u_interp, v_interp];
+// Interpolación bilineal; escribe en VX, VY en vez de devolver un arreglo nuevo.
+let VX = 0, VY = 0;
+function sampleVel(x, y) {
+    let i = Math.floor(x / dx), j = Math.floor(y / dy);
+    if (i < 0) i = 0; else if (i > NX - 2) i = NX - 2;
+    if (j < 0) j = 0; else if (j > NY - 2) j = NY - 2;
+    const fx = (x - i * dx) / dx, fy = (y - j * dy) / dy;
+    const c = j * NX + i, gx = 1 - fx, gy = 1 - fy;
+    const w00 = gx * gy, w10 = fx * gy, w01 = gx * fy, w11 = fx * fy;
+    VX = w00 * u[c] + w10 * u[c + 1] + w01 * u[c + NX] + w11 * u[c + NX + 1];
+    VY = w00 * v[c] + w10 * v[c + 1] + w01 * v[c + NX] + w11 * v[c + NX + 1];
 }
 
 function updateParticles() {
-    const targetCount = parseInt(document.getElementById("numParticles").value);
-    
-    while (particles.length < targetCount && particles.length < 10000) {
-        particles.push(createParticle());
-    }
-    while (particles.length > targetCount) {
-        particles.pop();
-    }
-    
-    for (let p of particles) {
-        p.age++;
-        
-        if (p.age > 5000) {
-            Object.assign(p, createParticle());
-            continue;
-        }
-        
-        let i = Math.floor(p.x / dx);
-        let j = Math.floor(p.y / dy);
-        
-        if (i < 1 || i >= NX-1 || j < 1 || j >= NY-1 || solid[idx(i,j)]) {
-            Object.assign(p, createParticle());
-            continue;
-        }
-        
-        let [ux, uy] = getVelocityAt(p.x, p.y);
-        let speed = Math.sqrt(ux*ux + uy*uy);
-        
-        if (speed < 0.05) {
-            p.stuckCounter++;
-            if (p.stuckCounter > 300) {
-                Object.assign(p, createParticle());
-                continue;
-            }
-        } else {
-            p.stuckCounter = 0;
-        }
-        
-        let [ux1, uy1] = getVelocityAt(p.x, p.y);
-        let x_temp = p.x + ux1 * dt;
-        let y_temp = p.y + uy1 * dt;
-        let [ux2, uy2] = getVelocityAt(x_temp, y_temp);
-        
-        let ux_avg = (ux1 + ux2) * 0.5;
-        let uy_avg = (uy1 + uy2) * 0.5;
-        
-        let newX = p.x + ux_avg * dt;
-        let newY = p.y + uy_avg * dt;
-        
-        if (newX < 0 || newX >= WIDTH_M || newY < 0 || newY >= HEIGHT_M) {
-            Object.assign(p, createParticle());
-            continue;
-        }
-        
-        let i2 = Math.floor(newX / dx);
-        let j2 = Math.floor(newY / dy);
-        
-        if (i2 >= 1 && i2 < NX-1 && j2 >= 1 && j2 < NY-1 && !solid[idx(i2, j2)]) {
-            p.x = newX;
-            p.y = newY;
-            
+    const targetCount = parseInt(el("numParticles").value);
+    while (particles.length < targetCount && particles.length < 10000) particles.push(newParticle());
+    if (particles.length > targetCount) particles.length = targetCount;
+
+    for (let n = 0; n < particles.length; n++) {
+        const pt = particles[n];
+        pt.age++;
+        if (pt.age > 5000) { respawn(pt); continue; }
+
+        const i = Math.floor(pt.x / dx), j = Math.floor(pt.y / dy);
+        if (i < 1 || i >= NX - 1 || j < 1 || j >= NY - 1 || solid[j * NX + i]) { respawn(pt); continue; }
+
+        // Una sola interpolación en el punto de partida: sirve para detectar
+        // partículas atascadas y como primera etapa del integrador (antes eran dos).
+        sampleVel(pt.x, pt.y);
+        const ux1 = VX, uy1 = VY;
+        if (ux1 * ux1 + uy1 * uy1 < 0.0025) {
+            if (++pt.stuckCounter > 300) { respawn(pt); continue; }
+        } else pt.stuckCounter = 0;
+
+        sampleVel(pt.x + ux1 * dt, pt.y + uy1 * dt);
+        const newX = pt.x + 0.5 * (ux1 + VX) * dt;
+        const newY = pt.y + 0.5 * (uy1 + VY) * dt;
+
+        if (newX < 0 || newX >= WIDTH_M || newY < 0 || newY >= HEIGHT_M) { respawn(pt); continue; }
+        const i2 = Math.floor(newX / dx), j2 = Math.floor(newY / dy);
+        if (i2 >= 1 && i2 < NX - 1 && j2 >= 1 && j2 < NY - 1 && !solid[j2 * NX + i2]) {
+            pt.x = newX; pt.y = newY;
             if (showStreamlines) {
-                p.trail.push({x: p.x, y: p.y});
-                if (p.trail.length > 50) p.trail.shift();
-            } else {
-                p.trail = [];
-            }
-        } else {
-            Object.assign(p, createParticle());
-        }
+                pt.tx[pt.th] = newX; pt.ty[pt.th] = newY;
+                pt.th = (pt.th + 1) % TRAIL;
+                if (pt.tn < TRAIL) pt.tn++;
+            } else pt.tn = 0;
+        } else respawn(pt);
     }
 }
 
@@ -1307,21 +1294,22 @@ function step() {
     const _t0 = performance.now();
     const u0 = currentU0();
     if (u0 !== solver.U0) { solver.setU0(u0); syncViscosity(); }
-    lastNsub = solver.step(SIM_VCYCLES);
+    lastNsub = solver.step();   // sin argumento: el solver elige 4 o 10 ciclos V
     // Al cambiar la geometría cambia la longitud característica: en modo
     // "Reynolds objetivo" hay que rehacer nu para conservar el régimen.
     if (Math.abs(solver.Lref - lastLref) > 1e-6) { lastLref = solver.Lref; syncViscosity(); }
 
-    // Métricas: máximo y percentil 99 robusto para la escala de color
-    maxVelocity = 0; minPressure = Infinity; maxPressure = -Infinity;
-    for (let c = 0; c < NX * NY; c++) {
+    // Velocidad máxima: la única métrica que se necesita en cada paso, porque
+    // alimenta el indicador de convergencia. Se compara al cuadrado y se hace
+    // una sola raíz al final.
+    let m2 = 0;
+    const n = NX * NY;
+    for (let c = 0; c < n; c++) {
         if (solid[c]) continue;
-        const sp = Math.sqrt(u[c]*u[c] + v[c]*v[c]);
-        if (sp > maxVelocity) maxVelocity = sp;
-        if (p[c] < minPressure) minPressure = p[c];
-        if (p[c] > maxPressure) maxPressure = p[c];
+        const s2 = u[c] * u[c] + v[c] * v[c];
+        if (s2 > m2) m2 = s2;
     }
-    if (!isFinite(minPressure)) { minPressure = 0; maxPressure = 0; }
+    maxVelocity = Math.sqrt(m2);
 
     simTime += dt;
     flowThroughs += u0 * dt / WIDTH_M;
@@ -1329,11 +1317,9 @@ function step() {
     prevMaxVel = maxVelocity;
     convergence = 0.92 * convergence + 0.08 * rawDelta;
 
-    computeVorticity();
-    updateScales();
+    needDerived = true;
     const _dt = performance.now() - _t0;
     stepMs = stepMs ? 0.9 * stepMs + 0.1 * _dt : _dt;
-    updateInfo();
 }
 
 // ---------- escalas robustas por percentil 99 ----------
@@ -1341,6 +1327,8 @@ function step() {
 // comprime todo el mapa de color. El percentil 99 evita ese aplastamiento.
 const HIST = new Int32Array(256);
 let scVel = 1, scVort = 1, scPress = 1;   // suavizadas en el tiempo
+let needDerived = true;   // hay un campo nuevo sin escalar (o cambió el modo)
+let scaleSnap = true;     // primer cálculo tras cambiar de campo: sin suavizado
 
 function pct99(mag, n) {
     let mx = 0;
@@ -1360,82 +1348,101 @@ function pct99(mag, n) {
     return mx;
 }
 
-function updateScales() {
-    const n = NX * NY;
-    for (let c = 0; c < n; c++) magScratch[c] = solid[c] ? -1 : Math.hypot(u[c], v[c]);
-    const pv = pct99(magScratch, n);
-    for (let c = 0; c < n; c++) magScratch[c] = solid[c] ? -1 : Math.abs(vorticity[c]);
-    const pw = pct99(magScratch, n);
-    for (let c = 0; c < n; c++) magScratch[c] = solid[c] ? -1 : Math.abs(p[c]);
-    const pp = pct99(magScratch, n);
-    const k = 0.85;
-    scVel   = k * scVel   + (1 - k) * Math.max(pv, 1e-3);
-    scVort  = k * scVort  + (1 - k) * Math.max(pw, 1e-3);
-    scPress = k * scPress + (1 - k) * Math.max(pp, 1e-4);
+// Una vez por fotograma (no por paso) y solo para el campo visible. La
+// vorticidad tampoco se calcula si no se está mirando.
+function updateDerived() {
+    if (!needDerived) return;
+    const n = NX * NY, mode = visualizationMode;
+    const k = scaleSnap ? 0 : 0.85;
+    if (mode === 'velocity') {
+        for (let c = 0; c < n; c++) magScratch[c] = solid[c] ? -1 : Math.sqrt(u[c] * u[c] + v[c] * v[c]);
+        scVel = k * scVel + (1 - k) * Math.max(pct99(magScratch, n), 1e-3);
+    } else if (mode === 'vorticity') {
+        computeVorticity();
+        for (let c = 0; c < n; c++) magScratch[c] = solid[c] ? -1 : Math.abs(vorticity[c]);
+        scVort = k * scVort + (1 - k) * Math.max(pct99(magScratch, n), 1e-3);
+    } else {
+        for (let c = 0; c < n; c++) magScratch[c] = solid[c] ? -1 : Math.abs(p[c]);
+        scPress = k * scPress + (1 - k) * Math.max(pct99(magScratch, n), 1e-4);
+    }
+    needDerived = false;
+    scaleSnap = false;
 }
 
+// ---------- panel: referencias cacheadas y escritura solo si cambia ----------
+const ELS = {};
+function el(id) { return ELS[id] || (ELS[id] = document.getElementById(id)); }
+function setText(id, txt) {
+    const e = el(id);
+    if (e && e._t !== txt) { e.textContent = txt; e._t = txt; }
+}
+function setStyle(id, prop, val) {
+    const e = el(id);
+    if (e && e.style[prop] !== val) e.style[prop] = val;
+}
+
+// Medición por bloques (ms, media móvil) y contadores por segundo.
+const PERF = { part: 0, render: 0, frames: 0, steps: 0, fps: 0, sps: 0, t0: performance.now() };
+function ema(old, x) { return old ? 0.9 * old + 0.1 * x : x; }
+
+let lastDivCheck = 0;
 function updateInfo() {
     const RHO = 1.2;   // aire; p del solver es cinemática (m²/s²) -> Pa
-    document.getElementById("maxVel").textContent = maxVelocity.toFixed(2) + " m/s";
-    document.getElementById("maxVelLegend").textContent = scVel.toFixed(1) + " m/s (p99)";
-    document.getElementById("minPressLegend").textContent = (-scPress * RHO).toFixed(1) + " Pa";
-    document.getElementById("maxPressLegend").textContent = "+" + (scPress * RHO).toFixed(1) + " Pa";
-    document.getElementById("vortLegendMax").textContent = scVort.toFixed(1) + " s⁻¹ (p99)";
+    setText("maxVel", maxVelocity.toFixed(2) + " m/s");
+    setText("maxVelLegend", scVel.toFixed(1) + " m/s (p99)");
+    setText("minPressLegend", (-scPress * RHO).toFixed(1) + " Pa");
+    setText("maxPressLegend", "+" + (scPress * RHO).toFixed(1) + " Pa");
+    setText("vortLegendMax", scVort.toFixed(1) + " s⁻¹ (p99)");
 
     const Re = solver.reynolds(), Rh = solver.cellRe();
-    document.getElementById("resolution").textContent = NX + " × " + NY;
-    document.getElementById("lref").textContent = solver.Lref.toFixed(2) + " m";
-    document.getElementById("reynolds").textContent = fmtRe(Re);
-    document.getElementById("cellRe").textContent = fmtRe(Rh);
-    document.getElementById("nsub").textContent = lastNsub;
-    const tEl = document.getElementById("turbState");
-    tEl.textContent = solver.turbActive() ? "Smagorinsky" : "laminar";
-    tEl.style.color = solver.turbActive() ? "#27598f" : "#2e8b57";
+    setText("resolution", NX + " × " + NY);
+    setText("lref", solver.Lref.toFixed(2) + " m");
+    setText("reynolds", fmtRe(Re));
+    setText("cellRe", fmtRe(Rh));
+    setText("nsub", lastNsub + " · " + solver.cycles + " ciclos V");
+    const turb = solver.turbActive();
+    setText("turbState", turb ? "Smagorinsky" : "laminar");
+    setStyle("turbState", "color", turb ? "#27598f" : "#2e8b57");
 
-    const warn = document.getElementById("reWarn");
     if (Rh > 2) {
-        warn.style.display = "block";
-        warn.textContent = "Re de celda = " + fmtRe(Rh) + " > 2: la difusión numérica del esquema domina sobre la viscosidad fijada. Bajar más el Reynolds sí cambia el resultado; subirlo por encima de este punto ya no.";
-    } else { warn.style.display = "none"; }
+        setStyle("reWarn", "display", "block");
+        setText("reWarn", "Re de celda = " + fmtRe(Rh) + " > 2: la difusión numérica del esquema domina sobre la viscosidad fijada. Bajar más el Reynolds sí cambia el resultado; subirlo por encima de este punto ya no.");
+    } else setStyle("reWarn", "display", "none");
 
     updateGeoWarnings();
 
     // Cuánto falta para el estacionario con la malla y el avance actuales
     const pasosFaltan = Math.max(0, 4 - flowThroughs) * WIDTH_M / (currentU0() * dt);
     const seg = pasosFaltan * stepMs / 1000;
-    document.getElementById("etaTau").textContent = fmtTiempo(seg);
-    const eh = document.getElementById("etaHint");
+    setText("etaTau", fmtTiempo(seg));
     if (seg > 900) {
-        eh.style.display = "block";
-        eh.textContent = "A este ritmo llegar al estacionario tarda " + fmtTiempo(seg) +
-            ". Conviene converger en una malla ligera y subir de malla al final: la geometría se remuestrea y no se pierde.";
-    } else eh.style.display = "none";
+        setStyle("etaHint", "display", "block");
+        setText("etaHint", "A este ritmo llegar al estacionario tarda " + fmtTiempo(seg) +
+            ". Conviene converger en una malla ligera y subir de malla al final: la geometría se remuestrea y no se pierde.");
+    } else setStyle("etaHint", "display", "none");
 
-    let obstacleCount = 0;
-    for (let i = 0; i < solid.length; i++) if (solid[i] === 1) obstacleCount++;
-    document.getElementById("obstacleCount").textContent = obstacleCount;
+    let obstacleCount = 0;   // a 5 Hz es un recorrido de bytes despreciable
+    for (let i = 0; i < solid.length; i++) obstacleCount += solid[i];
+    setText("obstacleCount", String(obstacleCount));
 
-    document.getElementById("simTime").textContent = simTime.toFixed(1) + " s";
-    document.getElementById("flowThrough").textContent = flowThroughs.toFixed(2);
-    document.getElementById("convergence").textContent = (convergence * 100).toFixed(2) + " %";
-    if (frameCount % 12 === 0)
-        document.getElementById("divRes").textContent = solver.divResidual().toExponential(1) + " · " + solver.cycles + "V";
-    const statusEl = document.getElementById("convStatus");
+    setText("simTime", simTime.toFixed(1) + " s");
+    setText("flowThrough", flowThroughs.toFixed(2));
+    setText("convergence", (convergence * 100).toFixed(2) + " %");
+    const now = performance.now();
+    if (now - lastDivCheck > 500) {
+        lastDivCheck = now;
+        setText("divRes", solver.divResidual().toExponential(1));
+    }
     let st, col;
     if (flowThroughs < 1) { st = "Llenando dominio"; col = "#b5843c"; }
     else if (convergence > 0.01) { st = "Transitorio"; col = "#b5843c"; }
     else if (convergence > 0.001 || flowThroughs < 3) { st = "Estabilizando"; col = "#2f6db0"; }
     else { st = "Estable ✓"; col = "#2e8b57"; }
-    statusEl.textContent = st;
-    statusEl.style.color = col;
+    setText("convStatus", st);
+    setStyle("convStatus", "color", col);
 
-    frameCount++;
-    const now = Date.now();
-    if (now - lastFPSUpdate > 1000) {
-        document.getElementById("fps").textContent = frameCount;
-        frameCount = 0;
-        lastFPSUpdate = now;
-    }
+    setText("fps", PERF.fps + " fps · " + PERF.sps + " pasos/s");
+    setText("perfMs", stepMs.toFixed(0) + " · " + PERF.part.toFixed(1) + " · " + PERF.render.toFixed(1) + " ms");
 }
 
 function setLateral(mode) {
@@ -1477,8 +1484,11 @@ function updateGeoWarnings() {
         msgs.push("La salida está a ×" + rel.toFixed(2) + " el frente de la geometría (se recomiendan ×15). La estela se trunca y la condición de salida se aplica dentro de ella. Mueva la geometría hacia la entrada.");
     }
     const w = document.getElementById("geoWarn");
-    if (msgs.length) { w.style.display = "block"; w.style.color = "#b5483c"; w.innerHTML = msgs.join("<br><br>"); }
-    else w.style.display = "none";
+    const html = msgs.join("<br><br>");
+    if (msgs.length) {
+        if (w.style.display !== "block") { w.style.display = "block"; w.style.color = "#b5483c"; }
+        if (w._h !== html) { w.innerHTML = html; w._h = html; }
+    } else if (w.style.display !== "none") w.style.display = "none";
 }
 
 function fmtRe(x) {
@@ -1637,17 +1647,33 @@ function drawScene(g, W, H, opts) {
 
     if (opts.particles) {
         g.lineWidth = lw;
-        for (const pt of particles) {
-            if (showStreamlines && pt.trail.length > 1) {
+        // Las estelas se trazan una por una a propósito: con transparencia, un
+        // único trazo conjunto pinta cada píxel una sola vez y se pierde el
+        // realce donde se cruzan muchas estelas, que es justo lo que delata las
+        // zonas de mayor caudal. El estilo se fija una sola vez fuera del bucle.
+        if (showStreamlines) {
+            g.strokeStyle = 'rgba(0,212,255,0.30)';
+            for (let n = 0; n < particles.length; n++) {
+                const pt = particles[n];
+                if (pt.tn < 2) continue;
+                let k = (pt.th - pt.tn + TRAIL) % TRAIL;
                 g.beginPath();
-                g.moveTo(pt.trail[0].x * sx, H - pt.trail[0].y * sy);
-                for (let i = 1; i < pt.trail.length; i++) g.lineTo(pt.trail[i].x * sx, H - pt.trail[i].y * sy);
-                g.strokeStyle = 'rgba(0,212,255,0.30)';
+                g.moveTo(pt.tx[k] * sx, H - pt.ty[k] * sy);
+                for (let m = 1; m < pt.tn; m++) {
+                    if (++k === TRAIL) k = 0;
+                    g.lineTo(pt.tx[k] * sx, H - pt.ty[k] * sy);
+                }
                 g.stroke();
             }
-            g.fillStyle = 'rgba(0,255,255,0.8)';
-            g.fillRect(pt.x * sx - lw, H - pt.y * sy - lw, 2 * lw, 2 * lw);
         }
+        // Los puntos no se solapan en la práctica: van en un solo relleno.
+        g.fillStyle = 'rgba(0,255,255,0.8)';
+        g.beginPath();
+        for (let n = 0; n < particles.length; n++) {
+            const pt = particles[n];
+            g.rect(pt.x * sx - lw, H - pt.y * sy - lw, 2 * lw, 2 * lw);
+        }
+        g.fill();
     }
 
     if (showVectors) {
@@ -1686,9 +1712,10 @@ function render() {
         }
         return;
     }
+    updateDerived();
     paintField();
     drawScene(ctx, canvas.width, canvas.height, {
-        smooth: document.getElementById('smoothField').checked,
+        smooth: el('smoothField').checked,
         particles: true
     });
 
@@ -1708,6 +1735,7 @@ function exportPNG() {
     const g = out.getContext('2d');
     g.fillStyle = '#000'; g.fillRect(0, 0, W, H + band);
 
+    updateDerived();
     paintField();
     drawScene(g, W, H, { smooth: true, particles: true });
 
@@ -1775,19 +1803,39 @@ function formatHMS(ms) {
     return p(h) + ':' + p(m) + ':' + p(s);
 }
 
+let lastInfo = 0;
 function loop() {
+    const now = performance.now();
     if (running) {
-        const now = performance.now();
         if (wallLastTick !== null) wallElapsedMs += now - wallLastTick;
         wallLastTick = now;
-        const spf = parseInt(document.getElementById("spfSel").value) || 1;
-        for (let k = 0; k < spf; k++) { step(); updateParticles(); }
+        const spf = parseInt(el("spfSel").value) || 1;
+        let tp = 0;
+        for (let k = 0; k < spf; k++) {
+            step();
+            const a = performance.now(); updateParticles(); tp += performance.now() - a;
+        }
+        PERF.part = ema(PERF.part, tp);
+        PERF.steps += spf;
     } else {
         wallLastTick = null;
     }
+    const r0 = performance.now();
     render();
-    const wc = document.getElementById("wallClock");
-    if (wc) wc.textContent = formatHMS(wallElapsedMs);
+    if (hasStarted) PERF.render = ema(PERF.render, performance.now() - r0);
+    setText("wallClock", formatHMS(wallElapsedMs));
+
+    // FPS reales: fotogramas dibujados, no pasos de solver
+    PERF.frames++;
+    if (now - PERF.t0 >= 1000) {
+        const s = (now - PERF.t0) / 1000;
+        PERF.fps = Math.round(PERF.frames / s);
+        PERF.sps = Math.round(PERF.steps / s);
+        PERF.frames = 0; PERF.steps = 0; PERF.t0 = now;
+    }
+    // Panel a 5 Hz: los valores no se pueden leer más rápido y escribir el DOM
+    // en cada paso competía con el cálculo y con el puntero.
+    if (now - lastInfo > 200) { lastInfo = now; updateInfo(); }
     requestAnimationFrame(loop);
 }
 
@@ -1803,6 +1851,7 @@ function resetParticles() {
 }
 function setVisualization(mode) {
     visualizationMode = mode;
+    needDerived = true; scaleSnap = true;
     document.querySelectorAll('.mode-btn').forEach(btn => {
         btn.classList.remove('active');
         if (btn.dataset.mode === mode) {
