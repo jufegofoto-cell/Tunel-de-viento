@@ -214,15 +214,6 @@ input[type=range]{ width:100%; accent-color:var(--accent); }
         </div>
 
         <div class="section">
-            <div class="section-head"><span class="ic">▶</span> Simulación</div>
-            <div class="btns">
-                <button class="btn primary" onclick="start()">▶ Iniciar</button>
-                <button class="btn" onclick="stop()">⏸ Pausar</button>
-                <button class="btn" onclick="resetParticles()">↺ Reiniciar</button>
-            </div>
-        </div>
-
-        <div class="section">
             <div class="section-head"><span class="ic">◈</span> Parámetros</div>
             <div class="field">
                 <label class="fld">Tipo de dominio<button class="tipbtn" onclick="toggleTip('tipDom',this)">?</button></label>
@@ -264,7 +255,7 @@ input[type=range]{ width:100%; accent-color:var(--accent); }
                 <div class="tipbox" id="tipMesh">
                   <p>Es la malla del <b>solver</b>, independiente del lienzo. Más celdas dan estelas y capas de cortante más finas, pero el coste crece más rápido que el número de celdas: al afinar la malla también sube el número de subpasos que exige la condición CFL.</p>
                   <p><span class="opt">768 × 448</span> equivale a la malla original de la herramienta y es la opción por defecto. <span class="opt">960 × 560</span> es el techo disponible.</p>
-                  <p>Todas mantienen <b>celdas cuadradas exactas</b> (relación 60/35) y son divisibles por dos varias veces, requisito del multigrid. Al cambiar de malla la geometría dibujada se remuestrea y la simulación se reinicia.</p>
+                  <p>Todas mantienen <b>celdas cuadradas exactas</b> (relación 60/35) y son divisibles por dos varias veces, requisito del multigrid. La geometría dibujada se guarda aparte, a 3,1 cm por píxel, y cada malla se deriva de ella: bajar a una malla ligera y volver a subir devuelve exactamente lo dibujado. En una malla gruesa, los tabiques y vanos más finos que una celda se conservan con ancho de una celda en vez de desaparecer. Al cambiar de malla la simulación se reinicia.</p>
                 </div>
             </div>
             <div class="field">
@@ -371,6 +362,15 @@ input[type=range]{ width:100%; accent-color:var(--accent); }
         </div>
 
         <div class="section">
+            <div class="section-head"><span class="ic">▶</span> Simulación</div>
+            <div class="btns">
+                <button class="btn primary" onclick="start()">▶ Iniciar</button>
+                <button class="btn" onclick="stop()">⏸ Pausar</button>
+                <button class="btn" onclick="resetSimulation()" title="Conserva la geometría y borra el flujo: vuelve a empezar desde cero con lo dibujado">↺ Reiniciar</button>
+            </div>
+        </div>
+
+        <div class="section">
             <div class="section-head"><span class="ic">⬇</span> Exportar</div>
             <div class="field">
                 <label class="fld">Resolución de salida</label>
@@ -380,11 +380,11 @@ input[type=range]{ width:100%; accent-color:var(--accent); }
                     <option value="5760">5760 × 3360 px</option>
                 </select>
             </div>
-            <label class="row-toggle"><span>Incluir pie con parámetros</span>
-                <span class="switch"><input type="checkbox" id="pngCaption" checked><span class="track"></span></span></label>
-            <div class="btns" style="margin-top:8px;">
+            <div class="btns">
                 <button class="btn primary" onclick="exportPNG()">📸 Guardar PNG</button>
             </div>
+            <label class="row-toggle" style="margin-top:8px;"><span>Incluir pie con parámetros</span>
+                <span class="switch"><input type="checkbox" id="pngCaption" checked><span class="track"></span></span></label>
         </div>
 
         <div class="section">
@@ -1127,25 +1127,117 @@ let vorticity = new Float32Array(NX * NY);
 let magScratch = new Float32Array(NX * NY);
 let lastNsub = 1;
 
-// Cambio de malla en caliente: remuestrea la geometría existente y
-// reengancha las referencias que usan el render y las partículas.
+// ================= GEOMETRÍA MAESTRA =================
+// Lo que el usuario dibuja o importa vive en una máscara fija de alta
+// resolución, independiente de la malla de cálculo. La malla del solver se
+// DERIVA de ella cada vez: así bajar a una malla ligera y volver a subir
+// devuelve exactamente lo dibujado, en vez de arrastrar la versión gruesa.
+const GM_NX = 1920, GM_NY = 1120;                 // 3,125 cm por píxel
+const GM_DX = WIDTH_M / GM_NX, GM_DY = HEIGHT_M / GM_NY;
+const geoMaster = new Uint8Array(GM_NX * GM_NY);  // fila 0 = abajo, como solid
+let cellFrac = null, cellFlags = null;            // escratch por celda de malla
+
+// Mide, para cada celda de la malla en el rango dado, qué fracción ocupa el
+// sólido maestro y si el sólido o el fluido la atraviesan de lado a lado.
+// Bits: 1 = una fila entera sólida, 2 = una columna entera sólida,
+//       4 = una fila entera fluida, 8 = una columna entera fluida.
+function measureCells(i0, i1, j0, j1) {
+    const rx = GM_NX / NX, ry = GM_NY / NY;
+    const colCnt = new Int32Array(Math.ceil(rx) + 2);
+    for (let j = j0; j <= j1; j++) {
+        const pyA = Math.floor(j * ry + 1e-6), pyB = Math.min(GM_NY, Math.ceil((j + 1) * ry - 1e-6));
+        for (let i = i0; i <= i1; i++) {
+            const pxA = Math.floor(i * rx + 1e-6), pxB = Math.min(GM_NX, Math.ceil((i + 1) * rx - 1e-6));
+            const w = pxB - pxA, h = pyB - pyA;
+            colCnt.fill(0, 0, w);
+            let tot = 0, fl = 0;
+            for (let py = pyA; py < pyB; py++) {
+                const row = py * GM_NX;
+                let rc = 0;
+                for (let k = 0; k < w; k++) { const sv = geoMaster[row + pxA + k]; rc += sv; colCnt[k] += sv; }
+                tot += rc;
+                if (rc === w) fl |= 1; else if (rc === 0) fl |= 4;
+            }
+            for (let k = 0; k < w; k++) { if (colCnt[k] === h) fl |= 2; else if (colCnt[k] === 0) fl |= 8; }
+            const c = j * NX + i;
+            cellFrac[c] = tot / (w * h);
+            cellFlags[c] = fl;
+        }
+    }
+}
+
+// Decide qué celdas son sólidas. Regla base: más de la mitad ocupada. Además,
+// para no perder lo que es más fino que una celda:
+//  · un tabique que cruza la celda de lado a lado y tiene fluido a ambos lados
+//    se conserva como muro de una celda (un muro que desaparece abre un paso
+//    de aire que el diseño no tiene);
+//  · un vano que cruza la celda y tiene sólido a ambos lados se conserva
+//    abierto (un vano que se cierra bloquea un paso que sí existe).
+// El borde de un bloque grueso no dispara ninguna de las dos reglas, porque
+// tiene sólido a un lado y fluido al otro: no se engorda ni se adelgaza.
+function rasterizeRegion(i0, i1, j0, j1) {
+    if (!cellFrac || cellFrac.length !== NX * NY) {
+        cellFrac = new Float32Array(NX * NY); cellFlags = new Uint8Array(NX * NY);
+        i0 = 0; i1 = NX - 1; j0 = 0; j1 = NY - 1;
+    }
+    i0 = Math.max(0, i0); j0 = Math.max(0, j0);
+    i1 = Math.min(NX - 1, i1); j1 = Math.min(NY - 1, j1);
+    if (i0 > i1 || j0 > j1) return;
+    measureCells(Math.max(0, i0 - 1), Math.min(NX - 1, i1 + 1),
+                 Math.max(0, j0 - 1), Math.min(NY - 1, j1 + 1));
+    const half = (i, j) => i >= 0 && i < NX && j >= 0 && j < NY && cellFrac[j * NX + i] >= 0.5;
+    for (let j = j0; j <= j1; j++)
+        for (let i = i0; i <= i1; i++) {
+            const c = j * NX + i, f = cellFrac[c], fl = cellFlags[c];
+            let sv;
+            if (f >= 0.5) {
+                sv = 1;
+                if ((fl & 4) && half(i, j - 1) && half(i, j + 1)) sv = 0;   // vano horizontal
+                if ((fl & 8) && half(i - 1, j) && half(i + 1, j)) sv = 0;   // vano vertical
+            } else {
+                sv = 0;
+                if (f > 0) {
+                    if ((fl & 1) && !half(i, j - 1) && !half(i, j + 1)) sv = 1;   // tabique horizontal
+                    if ((fl & 2) && !half(i - 1, j) && !half(i + 1, j)) sv = 1;   // tabique vertical
+                }
+            }
+            solid[c] = sv;
+        }
+    solver.markGeometryDirty();
+    initialDirty = true;
+}
+function rasterizeAll() { rasterizeRegion(0, NX - 1, 0, NY - 1); }
+
+// Reinicio: conserva la geometría (maestra y malla) y la configuración, borra
+// el flujo, la convergencia y el reloj, y deja el lienzo mostrando solo la
+// geometría. «Iniciar» arranca desde cero con lo que esté dibujado.
+function resetSimulation() {
+    running = false;
+    hasStarted = false;
+    solver.setU0(currentU0());
+    solver.reset();                 // campo uniforme U0, presión cero
+    lastLref = -1;
+    syncViscosity();
+    simTime = 0; flowThroughs = 0; convergence = 0; prevMaxVel = 0; maxVelocity = 0;
+    wallElapsedMs = 0; wallLastTick = null; lastNsub = 1;
+    vorticity.fill(0);
+    needDerived = true; scaleSnap = true;
+    resetParticles();
+    initialDirty = true;
+    lastInfo = 0;                   // refresca el panel en el próximo fotograma
+}
+
+// Cambio de malla en caliente: deriva la nueva malla de la geometría maestra
+// y reengancha las referencias que usan el render y las partículas.
 function changeMesh() {
     const [nx, ny] = document.getElementById('meshSel').value.split(',').map(Number);
     if (nx === NX && ny === NY) return;
-    const oldSolid = solid, oNX = NX, oNY = NY;
     NX = SIM_NX = nx; NY = SIM_NY = ny;
     dx = WIDTH_M / NX; dy = HEIGHT_M / NY;
     solver = makeSolver({ NX, NY, WIDTH_M, HEIGHT_M, dt, U0: currentU0(),
                           lateral: document.getElementById('domSel').value });
-    for (let j = 0; j < NY; j++) {
-        const oj = Math.min(oNY - 1, Math.floor(j * oNY / NY));
-        for (let i = 0; i < NX; i++) {
-            const oi = Math.min(oNX - 1, Math.floor(i * oNX / NX));
-            solver.solid[j * NX + i] = oldSolid[oj * oNX + oi];
-        }
-    }
-    solver.markGeometryDirty();
     u = solver.uc; v = solver.vc; p = solver.p; solid = solver.solid;
+    rasterizeAll();
     vorticity = new Float32Array(NX * NY);
     magScratch = new Float32Array(NX * NY);
     fieldCanvas.width = NX; fieldCanvas.height = NY;
@@ -1844,7 +1936,7 @@ function start() { running = true; hasStarted = true; }
 function openAbout() { document.getElementById("aboutModal").style.display = "flex"; }
 function closeAbout() { document.getElementById("aboutModal").style.display = "none"; }
 function stop() { running = false; }
-function clearObstacles() { solid.fill(0); solver.markGeometryDirty(); initialDirty = true; }
+function clearObstacles() { geoMaster.fill(0); solid.fill(0); solver.markGeometryDirty(); initialDirty = true; }
 function resetParticles() {
     const count = parseInt(document.getElementById("numParticles").value);
     initParticles(count);
@@ -1877,16 +1969,16 @@ let currentButton = 0;
 let brushCursorX = -1;
 let brushCursorY = -1;
 let showBrushCursor = false;
-let lastDrawI = -1;
-let lastDrawJ = -1;
+let lastDrawX = -1;   // último punto del trazo, en metros (-1 = sin trazo)
+let lastDrawY = -1;
 
 canvas.addEventListener('mousedown', (e) => {
     e.preventDefault();
     mouseDown = true;
     currentButton = e.button;
     showBrushCursor = false;
-    lastDrawI = -1;
-    lastDrawJ = -1;
+    lastDrawX = -1;
+    lastDrawY = -1;
     drawObstacle(e);
 });
 
@@ -1909,15 +2001,15 @@ canvas.addEventListener('mouseup', (e) => {
     e.preventDefault();
     mouseDown = false;
     showBrushCursor = true;
-    lastDrawI = -1;
-    lastDrawJ = -1;
+    lastDrawX = -1;
+    lastDrawY = -1;
 });
 
 canvas.addEventListener('mouseleave', () => {
     mouseDown = false;
     showBrushCursor = false;
-    lastDrawI = -1;
-    lastDrawJ = -1;
+    lastDrawX = -1;
+    lastDrawY = -1;
 });
 
 canvas.addEventListener('mouseenter', () => {
@@ -1929,77 +2021,87 @@ canvas.addEventListener('contextmenu', (e) => {
     return false;
 });
 
-function getCanvasIJ(e) {
+function getCanvasXY(e) {
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    let canvasX = (e.clientX - rect.left) * scaleX;
-    let canvasY = (e.clientY - rect.top) * scaleY;
-    let i = Math.floor(canvasX / canvas.width * NX);
-    let j = Math.floor((1 - canvasY / canvas.height) * NY);
-    return [i, j];
+    const fx = (e.clientX - rect.left) / rect.width;
+    const fy = (e.clientY - rect.top) / rect.height;
+    return [fx * WIDTH_M, (1 - fy) * HEIGHT_M];
 }
 
-// El grosor se fija en METROS, no en celdas: asi un muro de 0,5 m sigue
-// midiendo 0,5 m al cambiar de malla, en vez de engordar o adelgazar solo.
+// El grosor se fija en METROS y se pinta sobre la geometría maestra (3,1 cm
+// por píxel), no sobre la malla: un muro de 0,5 m mide 0,5 m en cualquier
+// malla, y en una malla gruesa se representa con la regla de tabiques finos.
 let brushSizeM = 2.0;
-function brushRadiusCells() { return Math.max(1, Math.round(0.5 * brushSizeM / dx)); }
 
 function syncBrush() {
     brushSizeM = parseFloat(document.getElementById('brushSize').value) || 2;
-    const r = brushRadiusCells();
-    const real = (2 * r + 1) * dx;
     document.getElementById('brushTag').textContent = brushSizeM.toFixed(1).replace('.', ',') + ' m';
     const hint = document.getElementById('brushHint');
-    hint.textContent = 'Trazo real ' + real.toFixed(2).replace('.', ',') + ' m · ' +
-                       (2 * r + 1) + ' celdas de ' + dx.toFixed(3).replace('.', ',') + ' m';
-    hint.style.color = (real > brushSizeM * 1.6) ? '#b5843c' : '';
+    const cel = brushSizeM / dx;
+    if (cel < 1) {
+        hint.textContent = 'Más fino que la celda (' + dx.toFixed(3).replace('.', ',') +
+            ' m): en esta malla se representa como un muro de 1 celda. La geometría guarda el grosor real.';
+        hint.style.color = '#b5843c';
+    } else {
+        hint.textContent = 'En esta malla ≈ ' + cel.toFixed(1).replace('.', ',') + ' celdas de ' +
+            dx.toFixed(3).replace('.', ',') + ' m';
+        hint.style.color = '';
+    }
     initialDirty = true;
 }
 
-function paintAt(i, j) {
-    const radius = brushRadiusCells();
-    for (let di = -radius; di <= radius; di++) {
-        for (let dj = -radius; dj <= radius; dj++) {
-            if (di*di + dj*dj <= radius*radius) {
-                let ii = i + di;
-                let jj = j + dj;
-                if (ii >= 0 && ii < NX && jj >= 0 && jj < NY) {
-                    if (currentButton === 0) {
-                        solid[idx(ii, jj)] = 1;
-                    } else if (currentButton === 2) {
-                        solid[idx(ii, jj)] = 0;
-                    }
-                }
-            }
+// Estampa un disco en la maestra y amplía la caja sucia (en píxeles maestros).
+let dirtyBox = null;
+function stampMaster(xm, ym, val) {
+    const r = Math.max(0.5, 0.5 * brushSizeM / GM_DX);
+    const cx = xm / GM_DX, cy = ym / GM_DY;
+    const x0 = Math.max(0, Math.floor(cx - r)), x1 = Math.min(GM_NX - 1, Math.ceil(cx + r));
+    const y0 = Math.max(0, Math.floor(cy - r)), y1 = Math.min(GM_NY - 1, Math.ceil(cy + r));
+    const r2 = r * r;
+    for (let py = y0; py <= y1; py++) {
+        const ddy = py + 0.5 - cy, row = py * GM_NX;
+        for (let px = x0; px <= x1; px++) {
+            const ddx = px + 0.5 - cx;
+            if (ddx * ddx + ddy * ddy <= r2) geoMaster[row + px] = val;
         }
+    }
+    if (!dirtyBox) dirtyBox = [x0, x1, y0, y1];
+    else {
+        if (x0 < dirtyBox[0]) dirtyBox[0] = x0; if (x1 > dirtyBox[1]) dirtyBox[1] = x1;
+        if (y0 < dirtyBox[2]) dirtyBox[2] = y0; if (y1 > dirtyBox[3]) dirtyBox[3] = y1;
     }
 }
 
-function drawObstacle(e) {
-    let [i, j] = getCanvasIJ(e);
-    if (i < 0 || i >= NX || j < 0 || j >= NY) return;
-    solver.markGeometryDirty();
+function flushDirty() {
+    if (!dirtyBox) return;
+    const [x0, x1, y0, y1] = dirtyBox;
+    dirtyBox = null;
+    // +1 celda de margen: la regla de tabiques mira a los vecinos
+    rasterizeRegion(Math.floor(x0 * NX / GM_NX) - 1, Math.floor(x1 * NX / GM_NX) + 1,
+                    Math.floor(y0 * NY / GM_NY) - 1, Math.floor(y1 * NY / GM_NY) + 1);
+}
 
-    if (lastDrawI < 0) {
-        // First point: just paint
-        paintAt(i, j);
+function drawObstacle(e) {
+    const [x, y] = getCanvasXY(e);
+    if (x < 0 || x >= WIDTH_M || y < 0 || y >= HEIGHT_M) return;
+    const val = currentButton === 0 ? 1 : (currentButton === 2 ? 0 : -1);
+    if (val < 0) return;
+    if (lastDrawX < 0) {
+        stampMaster(x, y, val);
     } else {
-        // Interpolate between last point and current to fill gaps
-        let di = i - lastDrawI;
-        let dj = j - lastDrawJ;
-        let dist = Math.sqrt(di*di + dj*dj);
-        let steps = Math.max(1, Math.ceil(dist));
-        for (let s = 0; s <= steps; s++) {
-            let t = s / steps;
-            let pi = Math.round(lastDrawI + di * t);
-            let pj = Math.round(lastDrawJ + dj * t);
-            paintAt(pi, pj);
+        // Interpola entre eventos del ratón para que el trazo no quede punteado
+        const ddx = x - lastDrawX, ddy = y - lastDrawY;
+        const dist = Math.sqrt(ddx * ddx + ddy * ddy);
+        const stepM = Math.max(GM_DX, 0.25 * brushSizeM);
+        const steps = Math.max(1, Math.ceil(dist / stepM));
+        for (let k = 0; k <= steps; k++) {
+            const t = k / steps;
+            stampMaster(lastDrawX + ddx * t, lastDrawY + ddy * t, val);
         }
     }
-    lastDrawI = i;
-    lastDrawJ = j;
-    initialDirty = true;   // sin esto el muro entra en "solid" pero el lienzo no se repinta
+    lastDrawX = x;
+    lastDrawY = y;
+    flushDirty();
 }
 
 // ========== IMPORTAR PNG ==========
@@ -2229,41 +2331,31 @@ function showImportControls() {
 function applyImportPNG() {
     if (!importImage) return;
 
-    // Render the transformed image onto an offscreen canvas
+    // La imagen transformada se rasteriza directamente a la resolución de la
+    // geometría maestra (antes: lienzo de 2400×1400 y luego celda más cercana).
     const offscreen = document.createElement('canvas');
-    offscreen.width = canvas.width;
-    offscreen.height = canvas.height;
-    const offCtx = offscreen.getContext('2d');
-    offCtx.clearRect(0, 0, offscreen.width, offscreen.height);
-    offCtx.save();
+    offscreen.width = GM_NX;
+    offscreen.height = GM_NY;
+    const offCtx = offscreen.getContext('2d', { willReadFrequently: true });
+    offCtx.clearRect(0, 0, GM_NX, GM_NY);
+    offCtx.setTransform(GM_NX / canvas.width, 0, 0, GM_NY / canvas.height, 0, 0);
     offCtx.translate(importX, importY);
     offCtx.rotate(importAngle);
     const w = importImage.width * importScale;
     const h = importImage.height * importScale;
     offCtx.drawImage(importImage, -w/2, -h/2, w, h);
-    offCtx.restore();
+    offCtx.setTransform(1, 0, 0, 1, 0, 0);
 
-    const imgData = offCtx.getImageData(0, 0, offscreen.width, offscreen.height);
-    const d = imgData.data;
-
-    for (let py = 0; py < canvas.height; py++) {
-        for (let px = 0; px < canvas.width; px++) {
-            const pi = (py * canvas.width + px) * 4;
-            const alpha = d[pi + 3];
-            if (alpha < 64) continue; // transparent = skip
-            const brightness = (d[pi] + d[pi+1] + d[pi+2]) / 3;
-            // Dark pixels become walls
-            const isWall = brightness < 128;
-            const i = Math.floor(px / canvas.width * NX);
-            const j = Math.floor((1 - py / canvas.height) * NY);
-            if (i >= 0 && i < NX && j >= 0 && j < NY) {
-                if (isWall) solid[idx(i, j)] = 1;
-            }
+    const d = offCtx.getImageData(0, 0, GM_NX, GM_NY).data;
+    for (let py = 0; py < GM_NY; py++) {
+        const row = (GM_NY - 1 - py) * GM_NX;   // la maestra tiene la fila 0 abajo
+        for (let px = 0; px < GM_NX; px++) {
+            const pi = (py * GM_NX + px) * 4;
+            if (d[pi + 3] < 64) continue;        // transparente: no toca
+            if ((d[pi] + d[pi + 1] + d[pi + 2]) < 384) geoMaster[row + px] = 1;   // oscuro = muro
         }
     }
-
-    solver.markGeometryDirty();
-    initialDirty = true;
+    rasterizeAll();
     cancelImportPNG();
 }
 
