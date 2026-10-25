@@ -80,6 +80,8 @@ label.fld{ display:block; font-size:9.5px; letter-spacing:.12em; text-transform:
 .btn.primary:hover{ background:var(--accent-d); }
 .btn.warn{ color:var(--red); }
 .btn.warn:hover{ background:#f3e3e0; border-color:#e2c4be; }
+.btn:disabled{ opacity:.45; cursor:default; }
+.btn:disabled:hover{ background:var(--panel-2); border-color:var(--line); }
 
 .field{ margin-bottom:12px; }
 input[type=number], select{
@@ -197,8 +199,13 @@ input[type=range]{ width:100%; accent-color:var(--accent); }
             </div>
             <input type="file" id="pngFileInput" accept="image/png" style="display:none" onchange="loadPNGObstacle(event)">
             <div class="field" style="margin-top:13px;">
-                <label class="fld">Grosor del pincel · <span id="brushTag">2,0 m</span></label>
-                <input type="range" id="brushSize" min="0.2" max="8" step="0.1" value="2" oninput="syncBrush()">
+                <label class="fld">Grosor del pincel · <span id="brushTag">64 px</span><button class="tipbtn" onclick="toggleTip('tipBrush',this)">?</button></label>
+                <input type="range" id="brushSize" min="1" max="256" step="1" value="64" oninput="syncBrush()">
+                <div class="tipbox" id="tipBrush">
+                  <p>El grosor se mide en <b>píxeles de la geometría</b>: la imagen de 1 920 × 1 120 px donde se guarda todo lo dibujado o importado, independiente de la malla de cálculo. 1 px es 1/1 920 del ancho del lienzo.</p>
+                  <p>Se usan píxeles porque una imagen importada <b>no trae escala</b>: al colocarla y escalarla sobre el lienzo, su tamaño en metros es arbitrario. El píxel sí es una medida directa de lo que se ve.</p>
+                  <p>El texto bajo el deslizador indica a cuántas celdas de la malla actual equivale el trazo. Si es más fino que una celda, el solver lo representa como un muro de una celda, pero la geometría guarda el grosor real.</p>
+                </div>
                 <p class="help" id="brushHint" style="margin-top:5px;"></p>
             </div>
             <p class="help" style="margin-top:9px;">Clic izquierdo dibuja muro · derecho borra · arrastrar pinta continuo.</p>
@@ -325,12 +332,23 @@ input[type=range]{ width:100%; accent-color:var(--accent); }
             </div>
             <div class="field" style="margin-top:13px;">
                 <label class="fld">Partículas · <span id="particleCount">3000</span></label>
-                <input type="range" id="numParticles" min="0" max="10000" step="500" value="3000">
+                <input type="range" id="numParticles" min="0" max="10000" step="100" value="3000">
+                <p class="help" id="trailBudget" style="margin-top:5px;"></p>
             </div>
             <label class="row-toggle"><span>Vectores de velocidad</span>
                 <span class="switch"><input type="checkbox" id="showVectors" onchange="toggleVectors()"><span class="track"></span></span></label>
             <label class="row-toggle"><span>Líneas de corriente</span>
                 <span class="switch"><input type="checkbox" id="showStreamlines" checked onchange="toggleStreamlines()"><span class="track"></span></span></label>
+            <div class="field" id="trailField" style="margin-top:6px;">
+                <label class="fld">Duración de estela · <span id="trailTag">0,2 s</span><button class="tipbtn" onclick="toggleTip('tipTrail',this)">?</button></label>
+                <input type="range" id="trailSec" min="0.2" max="2" step="0.1" value="0.2" oninput="setTrailDuration()">
+                <p class="help" id="trailHint" style="margin-top:5px;"></p>
+                <div class="tipbox" id="tipTrail">
+                  <p>Cuánto tiempo simulado recuerda cada partícula su recorrido. Una estela de <b>2 s</b> a 8 m/s mide unos 16 m y deja ver el camino del aire alrededor de la geometría; una de <b>0,2 s</b> se ve como un trazo corto.</p>
+                  <p>El coste de dibujo depende del <b>total de puntos</b> (partículas × puntos por estela). Al mover este control el número de partículas se ajusta para mantener ese total en unos 150 000, de modo que estelas más largas vienen con menos partículas y la fluidez no cambia. Después puede mover el control de partículas a mano; el texto bajo él indica si el coste supera el de referencia.</p>
+                  <p><u>Ojo:</u> son <b>trayectorias</b>, no líneas de corriente instantáneas. En flujo estacionario coinciden. Con desprendimiento de vórtices, una estela larga mezcla estados del flujo de distintos instantes y puede dibujar lazos o cruces que el campo actual no tiene.</p>
+                </div>
+            </div>
             <div class="field" style="margin-top:13px;">
                 <label class="fld">Paleta de color</label>
                 <select id="cmapSel" onchange="setColormap(this.value)">
@@ -364,9 +382,9 @@ input[type=range]{ width:100%; accent-color:var(--accent); }
         <div class="section">
             <div class="section-head"><span class="ic">▶</span> Simulación</div>
             <div class="btns">
-                <button class="btn primary" onclick="start()">▶ Iniciar</button>
-                <button class="btn" onclick="stop()">⏸ Pausar</button>
-                <button class="btn" onclick="resetSimulation()" title="Conserva la geometría y borra el flujo: vuelve a empezar desde cero con lo dibujado">↺ Reiniciar</button>
+                <button class="btn primary" id="btnStart" onclick="start()">▶ Iniciar</button>
+                <button class="btn" id="btnPause" onclick="stop()" disabled>⏸ Pausar</button>
+                <button class="btn warn" id="btnReset" onclick="resetAll()" title="Borra todo: geometría, flujo, partículas, contadores y lienzo. Conserva los parámetros.">⟲ Resetear</button>
             </div>
         </div>
 
@@ -425,6 +443,9 @@ input[type=range]{ width:100%; accent-color:var(--accent); }
                 <b>Clic derecho:</b> borrar<br>
                 <b>Arrastrar:</b> pintar continuo<br>
                 <b>Importar PNG:</b> negro = muro<br>
+                <b>Iniciar / Reiniciar:</b> arranca, o vuelve el flujo a cero conservando la geometría<br>
+                <b>Pausar / Reanudar:</b> detiene o continúa sin perder el flujo<br>
+                <b>Resetear:</b> borra todo menos los parámetros<br>
                 <b>Botones ?:</b> abren la explicación del control
             </p>
         </div>
@@ -1208,12 +1229,10 @@ function rasterizeRegion(i0, i1, j0, j1) {
 }
 function rasterizeAll() { rasterizeRegion(0, NX - 1, 0, NY - 1); }
 
-// Reinicio: conserva la geometría (maestra y malla) y la configuración, borra
-// el flujo, la convergencia y el reloj, y deja el lienzo mostrando solo la
-// geometría. «Iniciar» arranca desde cero con lo que esté dibujado.
-function resetSimulation() {
-    running = false;
-    hasStarted = false;
+// Vuelve el flujo a cero conservando geometría y parámetros: campo uniforme,
+// presión cero, convergencia, reloj y partículas desde el principio. Es lo que
+// hace «Reiniciar» (el botón de inicio con una simulación ya en curso).
+function restartFlow() {
     solver.setU0(currentU0());
     solver.reset();                 // campo uniforme U0, presión cero
     lastLref = -1;
@@ -1225,6 +1244,51 @@ function resetSimulation() {
     resetParticles();
     initialDirty = true;
     lastInfo = 0;                   // refresca el panel en el próximo fotograma
+}
+
+// Resetear: deja la app en blanco. Borra geometría (maestra y malla), flujo,
+// partículas, contadores, escalas de color y mediciones, y cancela una
+// importación a medias. Conserva los parámetros del panel (malla, dominio,
+// velocidad, viscosidad, visualización).
+function resetAll() {
+    let hayGeom = false;
+    for (let k = 0; k < geoMaster.length; k++) if (geoMaster[k]) { hayGeom = true; break; }
+    if ((hayGeom || hasStarted) &&
+        !confirm('Se borrarán la geometría dibujada o importada y la simulación. Los parámetros se conservan. ¿Continuar?'))
+        return;
+    running = false;
+    hasStarted = false;
+    if (importMode) cancelImportPNG();
+    geoMaster.fill(0);
+    solid.fill(0);
+    dirtyBox = null;
+    if (cellFrac) { cellFrac.fill(0); cellFlags.fill(0); }
+    solver.markGeometryDirty();
+    restartFlow();
+    magScratch.fill(0);
+    scVel = 1; scVort = 1; scPress = 1;
+    stepMs = 0; lastDivCheck = 0;
+    PERF.part = 0; PERF.render = 0;
+    setText('divRes', '—');
+    lastDrawX = -1; lastDrawY = -1;
+    updateRunButtons();
+}
+
+// Estado de los botones: «Iniciar» pasa a «Reiniciar» cuando hay una
+// simulación (en marcha o en pausa); «Pausar» alterna con «Reanudar».
+function updateRunButtons() {
+    const bs = el('btnStart'), bp = el('btnPause');
+    if (hasStarted) {
+        bs.textContent = '↺ Reiniciar';
+        bs.title = 'Vuelve el flujo a cero y arranca de nuevo con la geometría y los parámetros actuales';
+        bp.disabled = false;
+        bp.textContent = running ? '⏸ Pausar' : '▶ Reanudar';
+    } else {
+        bs.textContent = '▶ Iniciar';
+        bs.title = 'Arranca la simulación con la geometría dibujada';
+        bp.disabled = true;
+        bp.textContent = '⏸ Pausar';
+    }
 }
 
 // Cambio de malla en caliente: deriva la nueva malla de la geometría maestra
@@ -1280,7 +1344,8 @@ let convergence = 0;
 // Cada partícula guarda su estela en un búfer circular de Float32Array: sin
 // objetos {x,y} por punto, sin trail.shift() y sin recolección de basura.
 // Al reiniciarse se reutiliza el mismo objeto en vez de crear uno nuevo.
-const TRAIL = 50;
+let TRAIL = 50;                 // puntos por estela = duración / dt
+const TRAIL_BUDGET = 150000;    // puntos de estela totales de referencia (coste de dibujo)
 let particles = [];
 
 function newParticle() {
@@ -1932,14 +1997,60 @@ function loop() {
 }
 
 // ========== CONTROLES ==========
-function start() { running = true; hasStarted = true; }
+function start() {
+    if (hasStarted) restartFlow();   // con simulación en curso: reinicio desde cero
+    running = true; hasStarted = true;
+    updateRunButtons();
+}
 function openAbout() { document.getElementById("aboutModal").style.display = "flex"; }
 function closeAbout() { document.getElementById("aboutModal").style.display = "none"; }
-function stop() { running = false; }
+function stop() {                    // alterna Pausar / Reanudar
+    if (!hasStarted) return;
+    running = !running;
+    updateRunButtons();
+}
 function clearObstacles() { geoMaster.fill(0); solid.fill(0); solver.markGeometryDirty(); initialDirty = true; }
 function resetParticles() {
     const count = parseInt(document.getElementById("numParticles").value);
     initParticles(count);
+}
+
+// Duración de estela: fija los puntos por partícula y ajusta el número de
+// partículas para que el total de puntos (lo que cuesta dibujar) se mantenga.
+function setTrailDuration() {
+    const sec = parseFloat(el('trailSec').value) || 0.2;
+    const n = Math.max(2, Math.round(sec / dt));
+    if (n !== TRAIL) {
+        TRAIL = n;
+        for (const pt of particles) {
+            pt.tx = new Float32Array(TRAIL); pt.ty = new Float32Array(TRAIL);
+            pt.th = 0; pt.tn = 0;
+        }
+    }
+    const np = Math.max(100, Math.min(10000, Math.round(TRAIL_BUDGET / TRAIL / 100) * 100));
+    el('numParticles').value = np;
+    setText('particleCount', String(np));
+    setText('trailTag', sec.toFixed(1).replace('.', ',') + ' s');
+    updateTrailHints();
+}
+
+function updateTrailHints() {
+    const sec = TRAIL * dt;
+    const L = currentU0() * sec;
+    setText('trailHint', TRAIL + ' puntos · ≈ ' + L.toFixed(1).replace('.', ',') + ' m a U₀ = ' +
+            currentU0().toFixed(1).replace('.', ',') + ' m/s');
+    const np = parseInt(el('numParticles').value) || 0;
+    const ratio = showStreamlines ? np * TRAIL / TRAIL_BUDGET : 0;
+    const h = el('trailBudget');
+    if (ratio > 1.25) {
+        setText('trailBudget', 'Coste de estelas ×' + ratio.toFixed(1).replace('.', ',') +
+                ' sobre el de referencia: puede bajar la fluidez y tapar el campo de color.');
+        h.style.color = '#b5843c';
+    } else {
+        setText('trailBudget', showStreamlines ? 'Coste de estelas dentro de la referencia.' : '');
+        h.style.color = '';
+    }
+    setStyle('trailField', 'display', showStreamlines ? 'block' : 'none');
 }
 function setVisualization(mode) {
     visualizationMode = mode;
@@ -1961,6 +2072,7 @@ function toggleVectors() {
 }
 function toggleStreamlines() {
     showStreamlines = document.getElementById("showStreamlines").checked;
+    updateTrailHints();
 }
 
 // ========== MOUSE ==========
@@ -2028,23 +2140,27 @@ function getCanvasXY(e) {
     return [fx * WIDTH_M, (1 - fy) * HEIGHT_M];
 }
 
-// El grosor se fija en METROS y se pinta sobre la geometría maestra (3,1 cm
-// por píxel), no sobre la malla: un muro de 0,5 m mide 0,5 m en cualquier
-// malla, y en una malla gruesa se representa con la regla de tabiques finos.
-let brushSizeM = 2.0;
+// El grosor se fija en PÍXELES de la geometría maestra (1920×1120): una
+// imagen importada no trae escala, así que el metro sería una cifra arbitraria.
+// Internamente se guarda también su equivalente en unidades del dominio para
+// el cursor y la interpolación del trazo.
+let brushPx = 64;
+let brushSizeM = brushPx * GM_DX;
 
 function syncBrush() {
-    brushSizeM = parseFloat(document.getElementById('brushSize').value) || 2;
-    document.getElementById('brushTag').textContent = brushSizeM.toFixed(1).replace('.', ',') + ' m';
+    brushPx = Math.max(1, parseInt(document.getElementById('brushSize').value) || 64);
+    brushSizeM = brushPx * GM_DX;
+    document.getElementById('brushTag').textContent = brushPx + ' px';
     const hint = document.getElementById('brushHint');
-    const cel = brushSizeM / dx;
+    const cellPx = dx / GM_DX;                 // ancho de una celda de malla, en px
+    const cel = brushPx / cellPx;
+    const cellTxt = (cellPx % 1 === 0 ? cellPx.toFixed(0) : cellPx.toFixed(1).replace('.', ',')) + ' px';
     if (cel < 1) {
-        hint.textContent = 'Más fino que la celda (' + dx.toFixed(3).replace('.', ',') +
-            ' m): en esta malla se representa como un muro de 1 celda. La geometría guarda el grosor real.';
+        hint.textContent = 'Más fino que una celda de esta malla (' + cellTxt +
+            '): el solver lo representa como un muro de 1 celda. La geometría guarda el grosor real.';
         hint.style.color = '#b5843c';
     } else {
-        hint.textContent = 'En esta malla ≈ ' + cel.toFixed(1).replace('.', ',') + ' celdas de ' +
-            dx.toFixed(3).replace('.', ',') + ' m';
+        hint.textContent = 'En esta malla ≈ ' + cel.toFixed(1).replace('.', ',') + ' celdas de ' + cellTxt;
         hint.style.color = '';
     }
     initialDirty = true;
@@ -2371,6 +2487,7 @@ function cancelImportPNG() {
 
 document.getElementById("numParticles").addEventListener('input', (e) => {
     document.getElementById("particleCount").textContent = e.target.value;
+    updateTrailHints();
 });
 
 // ========== INICIO ==========
@@ -2390,6 +2507,8 @@ window.addEventListener('resize', fitCanvas);
 fitCanvas();
 
 initParticles(3000);
+updateTrailHints();
+document.getElementById("u0").addEventListener('input', updateTrailHints);
 syncViscosity();
 syncBrush();
 loop();
