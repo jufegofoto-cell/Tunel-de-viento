@@ -18,8 +18,13 @@ con la fuente JetBrains Mono incrustada.
 
 ## Qué hace
 
-- **Dibuja o importa la geometría.** Pincel sobre el lienzo, o un PNG donde los
-  píxeles oscuros se leen como muro, con mover / escalar / rotar antes de aplicar.
+- **Dibuja o importa la geometría.** Pincel sobre el lienzo, con grosor en
+  píxeles, o un PNG donde los píxeles oscuros se leen como muro, con mover /
+  escalar / rotar antes de aplicar. La geometría se guarda aparte a 1920 × 1120 px,
+  independiente de la malla de cálculo: cambiar de malla y volver no pierde nada.
+- **Controles de simulación.** *Iniciar* pasa a *Reiniciar* cuando hay una
+  simulación (vuelve el flujo a cero y conserva la geometría); *Pausar* alterna con
+  *Reanudar*; *Resetear* deja todo en blanco y conserva los parámetros.
 - **Tres tipos de dominio.** Conducto o túnel (tapa y piso como pared), planta en
   terreno abierto (ambos bordes dejan salir masa) y sección con suelo (piso pared,
   tapa abierta). Es la elección que más cambia el resultado.
@@ -27,11 +32,12 @@ con la fuente JetBrains Mono incrustada.
   (flujo reptante → vórtices adheridos → calle de von Kármán → estela desordenada),
   o por fluido real (aire, agua, aceite, glicerina, miel).
 - **Campos y visualización.** Velocidad, presión y vorticidad, con líneas de
-  corriente, vectores, seis paletas y escala normalizada por percentil 99.
+  corriente de duración ajustable (0,2 a 2 s), vectores, seis paletas y escala
+  normalizada por percentil 99.
 - **Barandillas de montaje.** El panel calcula el bloqueo, la distancia a la salida
   en múltiplos del frente y el tiempo estimado hasta el estado estacionario, y avisa
   cuando el montaje deja de ser representativo.
-- **Exportación PNG** hasta 5760 × 3360, con barra de escala y pie de parámetros.
+- **Exportación PNG** hasta 5760 × 3360, con pie de parámetros opcional.
 - **Ayuda en contexto.** Cada control con un botón `?` que explica qué hace cada
   opción y cuándo usarla.
 
@@ -46,8 +52,8 @@ Desde la pestaña **[Releases](../../releases)** del repositorio:
 
 | Archivo | Qué es |
 |---|---|
-| `TunelDeViento-2.0.0-portable.exe` | Un solo ejecutable. No instala nada. |
-| `TunelDeViento-2.0.0-setup.exe` | Instalador con acceso directo y desinstalador. |
+| `TunelDeViento-2.1.0-portable.exe` | Un solo ejecutable. No instala nada. |
+| `TunelDeViento-2.1.0-setup.exe` | Instalador con acceso directo y desinstalador. |
 
 Windows SmartScreen puede avisar la primera vez, porque el ejecutable no está
 firmado digitalmente: *Más información → Ejecutar de todas formas*.
@@ -63,8 +69,10 @@ Tres recomendaciones que ahorran tiempo y errores:
 2. **Vigile el indicador de bloqueo.** Por encima del 5 % en modo conducto, el
    resultado deja de ser representativo. El panel lo avisa en rojo.
 3. **Converja en malla ligera y suba al final.** Llegar al estado estacionario
-   (τ ≥ 4) en la malla máxima puede tardar horas; en 288 × 168 son minutos. Al
-   cambiar de malla la geometría se remuestrea y no se pierde.
+   (τ ≥ 4) en la malla máxima puede tardar horas; en 288 × 168 son minutos. La
+   geometría se guarda aparte de la malla, así que bajar y volver a subir devuelve
+   exactamente lo dibujado; en malla gruesa, tabiques y vanos más finos que una
+   celda se conservan con ancho de una celda en vez de desaparecer.
 
 ## Cómo funciona
 
@@ -76,6 +84,9 @@ de Chorin:
   rojo-negro), 4 ciclos con paredes y 10 con bordes abiertos.
 - **Turbulencia** por cierre Smagorinsky conmutable, que se apaga solo por debajo
   de Re ≈ 500.
+- **Geometría maestra** de 1920 × 1120 px de la que se deriva cada malla: celda
+  sólida si está ocupada en más de la mitad, con reglas que conservan tabiques y
+  vanos más finos que la celda sin engordar los bloques.
 - **Estabilidad** por sub-paso adaptativo (CFL y límite difusivo), pre-proyección a
   divergencia nula tras cada cambio de geometría, y reinicio automático si el campo
   se rompe.
@@ -97,6 +108,14 @@ no en JavaScript.
   alcanza el Re ≈ 10⁶ del viento real a escala urbana.
 - Abrir los bordes quita el confinamiento, **no** equivale a terreno infinito: siguen
   faltando las ~15 veces el frente aguas abajo que piden las guías.
+- **Sin flotabilidad ni temperatura**: el efecto chimenea no existe en la simulación.
+  En chimeneas solares solo se representa la parte inducida por el viento.
+- **La sección no es un análisis vertical completo.** El suelo es de deslizamiento
+  libre, equivalente a un plano de simetría: sirve para comparar cubiertas y vanos,
+  no para velocidades a altura peatonal.
+- **Escala nominal.** El dominio se calcula como 60 × 35 m, pero una imagen importada
+  no trae escala, así que los metros y el Reynolds en modo «Fluido real» son
+  nominales. El modo «Reynolds objetivo» no depende de la escala.
 
 ## Estructura
 
@@ -124,7 +143,7 @@ diálogo de guardado de Windows.
 1. **Actions → Build Windows → Run workflow** para actualizar el release `latest`.
 2. O empujar una etiqueta para crear un release con esa versión:
    ```bash
-   git tag v2.0.0 && git push --tags
+   git tag v2.1.0 && git push --tags
    ```
 
 El workflow verifica antes de compilar que el HTML esté presente, sea autocontenido
