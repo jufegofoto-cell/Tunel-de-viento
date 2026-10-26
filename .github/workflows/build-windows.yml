@@ -41,6 +41,25 @@ jobs:
           }
           Write-Host "HTML verificado: $($t.Length) bytes, autocontenido, version 2"
 
+      # La version aparece en tres sitios: package.json (titulo de la ventana y
+      # nombre de los .exe), APP_VERSION en el HTML (cabecera, pie del PNG) y la
+      # etiqueta de git. Si no coinciden, el release sale con nombres cruzados.
+      - name: Verificar la coherencia de la version
+        shell: pwsh
+        run: |
+          $pkg = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $t = Get-Content 'Tunel_de_viento_completo.html' -Raw
+          $m = [regex]::Match($t, "const APP_VERSION = '([0-9.]+)'")
+          if (-not $m.Success) { throw "El HTML no define APP_VERSION" }
+          $html = $m.Groups[1].Value
+          if (-not ($pkg -eq $html -or $pkg.StartsWith("$html."))) {
+            throw "package.json dice $pkg y el HTML dice $html: actualizar ambos"
+          }
+          if ('${{ github.ref_type }}' -eq 'tag' -and '${{ github.ref_name }}' -ne "v$pkg") {
+            throw "La etiqueta ${{ github.ref_name }} no coincide con package.json ($pkg): se esperaba v$pkg"
+          }
+          Write-Host "Version coherente: package.json $pkg, HTML $html"
+
       # El icono se necesita al final del build (portable + NSIS). Sin esta
       # comprobacion el fallo aparece despues de descargar Electron, NSIS y
       # 7zip y de compilar los dos objetivos: varios minutos tirados.
@@ -80,20 +99,20 @@ jobs:
           files: dist/*.exe
           fail_on_unmatched_files: true
           body: |
-            **Túnel de Viento 2.0** — simulación CFD 2D para análisis bioclimático.
+            **Túnel de Viento 2.1** — simulación CFD 2D para análisis bioclimático.
             Universidad de San Buenaventura · Pasto.
 
             Dos descargas: `portable` (un solo .exe, no instala nada) y `setup` (instalador con acceso directo).
             No requiere WebView2 ni ningún runtime: Electron incluye su propio Chromium.
 
-            ### Novedades frente a la 1.0
-            - **Solver nuevo.** Advección MUSCL de 2.º orden con limitador van Leer en lugar de upwind de 1.er orden, y cierre Smagorinsky en lugar del k-ε (que quedaba saturado en el tope de estabilidad en el 99,9 % de las celdas y actuaba como viscosidad constante). Conserva alrededor del doble de estructura: los vórtices se ven desprenderse en vez de emborronarse.
-            - **Presión por multigrid geométrico** en vez de 25 barridos SOR. El residuo `|∇·u|·h/U₀` baja de ~1,3e-2 a ~1e-4 y el coste es 3–4 veces menor. En malla ligera la app pasa de 1,2 a más de 30 fotogramas por segundo.
-            - **Tipo de dominio conmutable**: conducto, planta en terreno abierto o sección con suelo. Con bordes abiertos desaparece el efecto tobera que producían las paredes: en un caso con 77 % de bloqueo, la aceleración en el hueco cae de ×4,7 a ×0,7.
-            - **Viscosidad utilizable.** El selector antiguo no llegaba al solver y su rango era invisible. Ahora se ajusta por Reynolds objetivo o por fluido real, con indicador de Reynolds de celda y aviso cuando la difusión numérica toma el control.
-            - **Barandillas.** Indicadores de bloqueo, distancia a la salida en múltiplos del frente y tiempo estimado hasta el estado estacionario, con avisos cuando el montaje deja de ser representativo.
-            - **Malla seleccionable** de 192×112 a 960×560, con la geometría remuestreada al cambiar.
-            - **Exportación PNG** hasta 5760×3360 con barra de escala y pie de parámetros, y diálogo de guardado.
-            - Seis paletas de color, escala normalizada por percentil 99, globos de ayuda en cada control, y fuentes incrustadas para que la tipografía sea correcta sin instalar nada.
+            ### Novedades frente a la 2.0
+            - **Corrección en bordes abiertos.** Los modos «Planta en terreno abierto» y «Sección con suelo» usan ahora los 10 ciclos de multigrid previstos. La 2.0 forzaba 4 en todos los casos y la presión quedaba mal resuelta, con oscilaciones que no eran físicas.
+            - **Geometría independiente de la malla.** Lo dibujado o importado se guarda aparte a 1920×1120 px y cada malla se deriva de ello. En la 2.0, bajar a una malla ligera y volver a subir perdía para siempre los tabiques más finos que una celda; ahora la ida y vuelta es exacta y, en malla gruesa, tabiques y vanos finos se conservan con ancho de una celda.
+            - **Controles de simulación.** «Iniciar» pasa a «Reiniciar» cuando hay una simulación (vuelve el flujo a cero y conserva la geometría); «Pausar» alterna con «Reanudar»; «Resetear» borra geometría, flujo y lienzo, y conserva los parámetros. En la 2.0, «Reiniciar» solo redistribuía las partículas.
+            - **Pincel en píxeles** (1 a 256 px) con su equivalencia en celdas de la malla: una imagen importada no trae escala, así que el metro era una cifra arbitraria.
+            - **Duración de estela ajustable** de 0,2 a 2 s, con el número de partículas ajustado para que el coste de dibujo no cambie.
+            - **Rendimiento e interfaz.** Panel a 5 Hz, escala de color solo para el campo visible, máscaras precalculadas de caras sólidas, lienzo acelerado por GPU y partículas sin asignaciones de memoria. El contador de FPS de la 2.0 contaba pasos de cálculo; ahora se muestran por separado fotogramas, pasos por segundo y milisegundos por bloque. Los interruptores del panel, que no respondían al clic, funcionan.
+            - **Exportación PNG** sin barra de escala ni dimensiones del dominio, coherente con la escala nominal de las geometrías importadas.
+            - «Acerca de» actualizado: efecto chimenea ausente (no hay flotabilidad), alcance real del modo sección y escala nominal.
 
             Los resultados son **cualitativos**: sirven para intuición, docencia y comparación temprana, no para dimensionamiento. El alcance y las restricciones están detallados en «Acerca de» dentro de la aplicación.
