@@ -53,7 +53,7 @@ jobs:
           if (-not $m.Success) { throw "El HTML no define APP_VERSION" }
           $html = $m.Groups[1].Value
           if (-not ($pkg -eq $html -or $pkg.StartsWith("$html."))) {
-            throw "package.json dice $pkg y el HTML dice $html: actualizar ambos"
+            throw "package.json dice ${pkg} y el HTML dice ${html}: actualizar ambos"
           }
           if ('${{ github.ref_type }}' -eq 'tag' -and '${{ github.ref_name }}' -ne "v$pkg") {
             throw "La etiqueta ${{ github.ref_name }} no coincide con package.json ($pkg): se esperaba v$pkg"
