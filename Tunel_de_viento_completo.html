@@ -172,7 +172,7 @@ input[type=range]{ width:100%; accent-color:var(--accent); }
 <header id="topbar">
     <div class="brand">
         <span class="brand-title">Túnel de Viento<span class="brand-tag">COMPLETO</span></span>
-        <span class="brand-sub">Bioclimática · Simulación de viento CFD 2D</span>
+        <span class="brand-sub">Bioclimática · Simulación de viento CFD 2D · v2.1</span>
     </div>
     <div class="brand-info">
         <div><b>MAC · MUSCL · multigrid</b></div>
@@ -456,21 +456,22 @@ input[type=range]{ width:100%; accent-color:var(--accent); }
 <div id="aboutModal" onclick="if(event.target===this)closeAbout()">
   <div class="about-card">
     <h2>Acerca de — Túnel de Viento 2D</h2>
-    <div class="about-sub">Simulador de flujo de aire · herramienta <b>2D preliminar y educativa</b></div>
+    <div class="about-sub">Simulador de flujo de aire · herramienta <b>2D preliminar y educativa</b> · versión 2.1</div>
 
     <h3>Metodología</h3>
     <p>Resuelve las ecuaciones de Navier-Stokes incompresibles en 2D mediante el <b>método de proyección de Chorin</b> sobre una <b>malla escalonada (MAC)</b>: las velocidades se almacenan en las caras de cada celda y la presión y los escalares en los centros, lo que elimina de raíz el desacople par-impar (patrón de tablero de ajedrez) del campo de presión.</p>
     <ul>
       <li><b>Advección:</b> esquema <b>MUSCL de segundo orden</b> con limitador van Leer (TVD), en forma de flujos sobre la malla escalonada. Sustituye al upwind de primer orden y reduce a la cuarta parte la difusión numérica, que era lo que emborronaba capas de cortante y acortaba las estelas.</li>
-      <li><b>Presión:</b> Poisson resuelto con <b>multigrid geométrico</b> (ciclo V de 3–4 niveles, suavizador Gauss-Seidel rojo-negro, restricción de peso pleno y prolongación constante a trozos). Sustituye a los 25 barridos SOR, que propagaban información una celda por barrido y nunca convergían. El residuo adimensional <code>|∇·u|·h/U₀</code> baja de ~1,3e-2 a ~1e-4, y el coste es entre 3 y 4 veces menor.</li>
+      <li><b>Presión:</b> Poisson resuelto con <b>multigrid geométrico</b> (ciclo V de 3–4 niveles, suavizador Gauss-Seidel rojo-negro, restricción de peso pleno y prolongación constante a trozos). Sustituye a los 25 barridos SOR, que propagaban información una celda por barrido y nunca convergían. El número de ciclos V por subpaso lo decide el solver según los bordes: 4 con bordes de pared y 10 con algún borde abierto, porque una salida libre hace más difícil de resolver la ecuación de presión. El residuo adimensional <code>|∇·u|·h/U₀</code> baja de ~1,3e-2 a ~1e-4, y el coste es entre 3 y 4 veces menor.</li>
       <li><b>Turbulencia:</b> cierre <b>Smagorinsky</b>, <code>νt = (Cs·Δ)²·|S|</code> con Cs = 0,17. Reemplaza al k-ε previo, cuya viscosidad turbulenta quedaba saturada en el tope de estabilidad difusiva en casi todo el dominio y actuaba como viscosidad constante. Al escalar con el cortante local, el nuevo cierre es casi nulo en el flujo libre y solo actúa donde hay estructura: conserva del orden del doble de enstrofía. Conmutable: automático (se apaga por debajo de Re ≈ 500), siempre activo, o laminar.</li>
       <li><b>Viscosidad:</b> ajustable en caliente, por <b>Reynolds objetivo</b> (la app despeja ν = U₀·L/Re con L medida de la geometría) o por <b>fluido real</b>. El panel muestra el <b>Reynolds de celda</b> y avisa cuando supera 2, umbral por debajo del cual la viscosidad fijada domina sobre la difusión numérica del esquema.</li>
-      <li><b>Fronteras:</b> entrada de velocidad uniforme, salida de gradiente nulo con presión anclada a cero, y obstáculos sólidos con no-deslizamiento y no-penetración impuestos en las caras. La tapa y el piso son <b>conmutables</b> entre pared de deslizamiento libre, salida abierta o mixto (piso pared y tapa abierta), según se esté dibujando un conducto, una planta o una sección.</li>
+      <li><b>Fronteras:</b> entrada de velocidad uniforme, salida de gradiente nulo con presión anclada a cero, y obstáculos sólidos con no-deslizamiento y no-penetración impuestos en las caras. La tapa y el piso son <b>conmutables</b> entre pared de deslizamiento libre, salida abierta o mixto (piso pared y tapa abierta), según se esté dibujando un conducto, una planta o una sección. Entre planta y sección solo cambia el borde inferior: el solver no tiene gravedad ni distingue «arriba».</li>
       <li><b>Bordes abiertos:</b> salida por gradiente nulo y reflujo amortiguado hacia el campo lejano con peso |v|/(|v|+0,1·U₀). El amortiguamiento no es opcional: en una cara donde el fluido entra sí entran características y hay que imponer algo, y un gradiente nulo puro convierte el borde en una fuente de energía cinética que crece como |u|³ hasta reventar la simulación. La presión en esos bordes queda en Neumann; fijarla a cero donde el flujo está acelerado diverge, y peor cuanto más fina la malla, porque la corrección escala con 1/h.</li>
       <li><b>Barandillas de geometría:</b> el panel calcula el bloqueo (mayor envolvente vertical del sólido) y la distancia a la salida en múltiplos del frente, y avisa cuando el montaje deja de ser representativo. Con bloqueo alto y bordes de pared, la aceleración en el hueco la produce la pared por continuidad, no la geometría: a 77 % de bloqueo el factor es 4,3.</li>
       <li><b>Estabilidad:</b> sub-paso adaptativo por CFL y por límite difusivo, pre-proyección del campo a divergencia nula tras cada cambio de geometría (sin ella el arranque uniforme sobre un obstáculo diverge), y reinicio automático si el campo se rompe.</li>
-      <li><b>Render:</b> el campo se rasteriza a la resolución del <i>solver</i> y el lienzo lo escala por hardware, no un bucle en JavaScript: del orden de 48 000 píxeles por fotograma en vez de 3 360 000. La escala de color se normaliza por <b>percentil 99</b> y no por el máximo, para que una sola celda singular en una esquina viva no aplaste todo el mapa. Seis paletas, incluida la original.</li>
-      <li>La geometría 2D puede dibujarse o importarse desde un PNG (píxeles oscuros = muro), y el resultado exportarse en PNG de alta resolución con barra de escala y pie de parámetros.</li>
+      <li><b>Render:</b> el campo se rasteriza a la resolución del <i>solver</i> y el lienzo lo escala por hardware, no un bucle en JavaScript: tantos píxeles por fotograma como celdas tenga la malla (de 22 000 a 538 000) en vez de 3 360 000. La escala de color se normaliza por <b>percentil 99</b> y no por el máximo, para que una sola celda singular en una esquina viva no aplaste todo el mapa. Seis paletas, incluida la original.</li>
+      <li><b>Geometría maestra:</b> lo que se dibuja, borra o importa se guarda en una imagen propia de 1 920 × 1 120 px, independiente de la malla de cálculo, y cada malla se deriva de ella. Cambiar de malla y volver devuelve exactamente lo dibujado. Al pasar a la malla, una celda es sólida si está ocupada en más de la mitad; además, un tabique más fino que la celda con aire a ambos lados se conserva como muro de una celda, y un vano más fino que la celda entre dos sólidos se conserva abierto. El borde de un bloque grueso no dispara ninguna de las dos reglas, así que los bloques no engordan.</li>
+      <li>La geometría 2D puede dibujarse con un pincel medido en píxeles de la geometría o importarse desde un PNG (píxeles oscuros = muro), y el resultado exportarse en PNG de alta resolución con pie de parámetros opcional.</li>
     </ul>
 
     <h3>Alcances</h3>
@@ -486,7 +487,9 @@ input[type=range]{ width:100%; accent-color:var(--accent); }
       <li>Sin funciones de pared: no resuelve la subcapa viscosa junto a los sólidos.</li>
       <li><b>Entrada de velocidad uniforme</b>, sin perfil de capa límite atmosférica. Es un túnel aerodinámico clásico, no viento exterior urbano: no reproduce el descenso por fachada ni el vórtice de base.</li>
       <li>Abrir los bordes quita el efecto de confinamiento, <b>no</b> equivale a terreno infinito. Las guías piden además unas 15 veces el frente aguas abajo para que la estela se desarrolle antes de tocar la salida; el panel indica cuánto hay.</li>
-      <li><b>Sin transferencia de calor</b>, flotabilidad ni efectos térmicos; fluido isotermo de propiedades constantes.</li>
+      <li><b>Sin transferencia de calor</b>, flotabilidad ni efectos térmicos; fluido isotermo de propiedades constantes. En consecuencia, el <b>efecto chimenea no existe</b> en la simulación: en chimeneas solares o ventilación por estratificación solo se representa la parte inducida por el viento.</li>
+      <li><b>La sección no es un análisis vertical completo:</b> el suelo es de deslizamiento libre, que matemáticamente equivale a un plano de simetría. Un edificio de altura H en sección se comporta casi como, en planta, un bloque de ancho 2H con su reflejo. Sirve para comparar configuraciones de cubierta y vanos, no para velocidades a altura peatonal.</li>
+      <li><b>Escala nominal:</b> el dominio se calcula como 60 × 35 m, pero una geometría importada no trae escala propia, así que los metros, la longitud característica y el Reynolds en modo «Fluido real» son nominales. El modo «Reynolds objetivo» fija el régimen sin depender de la escala.</li>
       <li>Resultados <b>cualitativos/relativos, no cuantitativos absolutos</b>: no usar para dimensionamiento, cargas de viento normativas ni certificación.</li>
       <li>La fidelidad depende de la resolución de malla elegida y de la calidad de la geometría importada.</li>
     </ul>
@@ -501,6 +504,18 @@ input[type=range]{ width:100%; accent-color:var(--accent); }
     <p>Confirmación visual: el campo de color se ve congelado entre fotogramas, la estela dejó de crecer y las líneas de corriente ya no cambian de forma.</p>
     <p><b>Matices importantes:</b> Δ vigila un solo escalar (la velocidad máxima global), así que es un indicio fuerte, no una garantía local completa. Si el flujo es intrínsecamente inestable (desprendimiento periódico de vórtices), Δ puede no llegar a cero sino oscilar de forma regular: ahí la convergencia es <b>estadística</b> (amplitud y periodo repetibles), no Δ = 0. Y recuerde: <b>estacionariedad ≠ exactitud</b> — que el campo deje de cambiar no hace los valores cuantitativamente certificables.</p>
 
+    <h3>Novedades de la versión 2.1</h3>
+    <ul>
+      <li><b>Corrección:</b> el modo «Planta en terreno abierto» y el de sección usan ahora los 10 ciclos V previstos para bordes abiertos. Antes la app forzaba 4 en todos los casos y la presión quedaba mal resuelta, con oscilaciones que no eran físicas.</li>
+      <li><b>Geometría maestra</b> independiente de la malla (ver Metodología): bajar a una malla ligera para converger y volver a subir ya no pierde tabiques ni vanos finos.</li>
+      <li><b>Controles de simulación:</b> «Iniciar» pasa a «Reiniciar» cuando hay una simulación y vuelve el flujo a cero conservando la geometría; «Pausar» alterna con «Reanudar»; «Resetear» borra geometría, flujo, partículas, contadores y lienzo, y conserva los parámetros.</li>
+      <li><b>Pincel en píxeles</b> de la geometría, de 1 a 256 px, con su equivalencia en celdas de la malla actual. Se dejó el metro porque las imágenes importadas no traen escala.</li>
+      <li><b>Duración de estela</b> ajustable de 0,2 a 2 s. El número de partículas se ajusta para mantener constante el total de puntos dibujados, de modo que estelas largas no reducen la fluidez.</li>
+      <li><b>Rendimiento:</b> el panel se actualiza a 5 Hz y solo escribe lo que cambia; la escala de color y la vorticidad se calculan una vez por fotograma y solo para el campo visible; el solver usa máscaras precalculadas de caras sólidas; el lienzo principal deja de forzarse a CPU; las partículas usan búferes circulares y una interpolación menos por paso.</li>
+      <li><b>Medición:</b> «Ritmo» muestra fotogramas por segundo reales y pasos de solver por segundo por separado (antes el contador de FPS contaba pasos), y una fila nueva da los milisegundos de solver, partículas y render.</li>
+      <li><b>Interfaz:</b> los interruptores del panel responden al clic (antes no cambiaban de estado); el panel se reordenó; el pie del PNG exportado ya no incluye barra de escala ni dimensiones del dominio, coherente con la escala nominal.</li>
+    </ul>
+
     <div class="about-note">Esta herramienta busca dar intuición física y apoyo conceptual en fases preliminares. Para decisiones de ingeniería emplee software CFD validado y/o ensayos.</div>
     <button class="about-close" onclick="closeAbout()">Cerrar</button>
   </div>
@@ -513,11 +528,12 @@ const canvas = document.getElementById("mainCanvas");
 // opción hace que Chrome lo mantenga en CPU (escalado de 3,4 Mpx por software).
 const ctx = canvas.getContext("2d");
 
+const APP_VERSION = '2.1';
 const WIDTH_M = 60;
 const HEIGHT_M = 35;
 
 // ===================== RESOLUCIÓN DE SIMULACIÓN =====================
-// El CFD (malla escalonada MAC + modelo k-ε) corre en ESTA malla y se
+// El CFD (malla escalonada MAC + cierre Smagorinsky) corre en ESTA malla y se
 // interpola al lienzo para visualizar. Súbela para más detalle o bájala
 // si va lento en tu equipo. Es independiente del tamaño del canvas.
 // Las mallas disponibles mantienen la relación 60/35 exacta (celdas cuadradas)
@@ -1896,27 +1912,16 @@ function exportPNG() {
     paintField();
     drawScene(g, W, H, { smooth: true, particles: true });
 
-    // barra de escala: 10 m
-    const barPx = W * 10 / WIDTH_M, mx = W * 0.03, my = H - W * 0.03;
-    g.strokeStyle = 'rgba(255,255,255,0.92)'; g.lineWidth = Math.max(2, W / 900);
-    g.beginPath(); g.moveTo(mx, my); g.lineTo(mx + barPx, my);
-    g.moveTo(mx, my - W/220); g.lineTo(mx, my + W/220);
-    g.moveTo(mx + barPx, my - W/220); g.lineTo(mx + barPx, my + W/220);
-    g.stroke();
-    g.fillStyle = 'rgba(255,255,255,0.92)';
-    g.font = `${Math.round(W/95)}px 'JetBrains Mono', monospace`;
-    g.fillText('10 m', mx + barPx / 2 - W/130, my - W/130);
-
     if (withCaption) {
         g.fillStyle = '#0f1620'; g.fillRect(0, H, W, band);
         const fs = Math.round(band * 0.26);
         g.font = `700 ${fs}px 'JetBrains Mono', monospace`;
         g.fillStyle = '#eef2f6';
-        g.fillText('Túnel de Viento · CFD 2D', W * 0.025, H + band * 0.40);
+        g.fillText('Túnel de Viento · CFD 2D · v' + APP_VERSION, W * 0.025, H + band * 0.40);
         g.font = `${Math.round(fs * 0.78)}px 'JetBrains Mono', monospace`;
         g.fillStyle = '#8198ad';
         const campo = { velocity: 'Velocidad', pressure: 'Presión', vorticity: 'Vorticidad' }[visualizationMode];
-        const l1 = `Campo: ${campo} · escala p99 · paleta ${cmapName} · dominio ${WIDTH_M}×${HEIGHT_M} m · malla ${NX}×${NY}`;
+        const l1 = `Campo: ${campo} · escala p99 · paleta ${cmapName} · malla ${NX}×${NY}`;
         const l2 = `U0 = ${currentU0().toFixed(1)} m/s · Re = ${fmtRe(solver.reynolds())} (L = ${solver.Lref.toFixed(2)} m) · Re celda = ${fmtRe(solver.cellRe())} · cierre ${solver.turbActive() ? 'Smagorinsky' : 'laminar'} · τ = ${flowThroughs.toFixed(2)}`;
         g.fillText(l1, W * 0.025, H + band * 0.66);
         g.fillText(l2, W * 0.025, H + band * 0.88);
@@ -2513,7 +2518,7 @@ syncViscosity();
 syncBrush();
 loop();
 
-console.log("🌪️ Túnel de Viento iniciado");
+console.log("🌪️ Túnel de Viento v" + APP_VERSION + " iniciado");
 console.log(`Dominio: ${WIDTH_M}m × ${HEIGHT_M}m | Resolución: ${NX} × ${NY}`);
 </script>
 
