@@ -164,6 +164,22 @@ input[type=range]{ width:100%; accent-color:var(--accent); }
 #aboutModal .about-sub { color:#9a9aa8; font-size:12px; margin-bottom:6px; }
 #aboutModal .about-close { margin-top:20px; background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; border:none; padding:9px 20px; border-radius:8px; cursor:pointer; font-weight:600; }
 #aboutModal .about-note { margin-top:14px; padding:10px 12px; background:#241f10; border:1px solid #5a4a1a; border-radius:8px; color:#ffd98a; font-size:12px; }
+#aboutModal h4 { margin:16px 0 4px; font-size:12.5px; color:#fff; }
+#aboutModal .about-nav { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 4px; }
+#aboutModal .about-nav button { background:#23232c; color:#c9cfff; border:1px solid #3a3a48; border-radius:6px; padding:4px 9px; font-size:11.5px; cursor:pointer; font-family:inherit; }
+#aboutModal .about-nav button:hover { background:#30304a; color:#fff; }
+#aboutModal .gv { margin:7px 0 9px; padding-left:10px; border-left:2px solid #34344a; }
+#aboutModal .gv b.n { color:#fff; }
+#aboutModal .gv .r { display:block; margin-top:3px; color:#a8e6bc; }
+#aboutModal .gv .r::before { content:'→ '; color:#6fcf97; }
+#aboutModal ol { margin:6px 0 6px 20px; padding:0; }
+#aboutModal ol li { margin:5px 0; }
+#aboutModal figure { margin:12px 0 4px; }
+#aboutModal figure svg { width:100%; height:auto; display:block; background:#101016; border:1px solid #2c2c3a; border-radius:8px; }
+#aboutModal figcaption { font-size:11.5px; color:#9a9aa8; margin-top:5px; }
+#aboutModal table.prop { border-collapse:collapse; width:100%; margin:8px 0; font-size:12px; }
+#aboutModal table.prop th, #aboutModal table.prop td { border:1px solid #2f2f3d; padding:5px 7px; text-align:left; }
+#aboutModal table.prop th { background:#1d1d27; color:#c9cfff; font-weight:600; }
 #aboutModal code { background:#23232c; padding:1px 5px; border-radius:4px; font-size:12px; }
 </style>
 </head>
@@ -213,7 +229,7 @@ input[type=range]{ width:100%; accent-color:var(--accent); }
 
         <div class="section" id="importSection" style="display:none;">
             <div class="section-head"><span class="ic">⚙</span> Importar PNG</div>
-            <p class="help" style="margin-bottom:10px;">Arrastra la imagen sobre el canvas · ↺ rota · ⤡ escala · negro = muro</p>
+            <p class="help" style="margin-bottom:10px;">Arrastra la imagen sobre el canvas · ↺ rota (con Ctrl, en pasos de 5°) · ⤡ escala · negro = muro</p>
             <div class="btns">
                 <button class="btn primary" onclick="applyImportPNG()">✔ Aplicar al canvas</button>
                 <button class="btn warn" onclick="cancelImportPNG()">✘ Cancelar</button>
@@ -458,7 +474,152 @@ input[type=range]{ width:100%; accent-color:var(--accent); }
     <h2>Acerca de — Túnel de Viento 2D</h2>
     <div class="about-sub">Simulador de flujo de aire · herramienta <b>2D preliminar y educativa</b> · versión 2.1</div>
 
-    <h3>Metodología</h3>
+    <div class="about-nav">
+      <button onclick="aboutGo('ab-guia')">Guía de uso</button>
+      <button onclick="aboutGo('ab-prop')">Dónde situar la geometría</button>
+      <button onclick="aboutGo('ab-metodo')">Metodología</button>
+      <button onclick="aboutGo('ab-alcance')">Alcances</button>
+      <button onclick="aboutGo('ab-restr')">Restricciones</button>
+      <button onclick="aboutGo('ab-conv')">Convergencia</button>
+      <button onclick="aboutGo('ab-nov')">Novedades 2.1</button>
+    </div>
+
+    <h3 id="ab-guia">Guía de uso</h3>
+    <p>Cómo plantear un caso de principio a fin, qué significa cada control y qué valor conviene en cada situación. Cada control del panel tiene además su botón <b>?</b> con la explicación corta.</p>
+
+    <h4>Flujo de trabajo recomendado</h4>
+    <ol>
+      <li><b>Elija el tipo de dominio</b> según lo que va a dibujar: planta, sección o conducto. Es la decisión que más cambia el resultado.</li>
+      <li><b>Dibuje o importe la geometría en malla ligera</b> (192 × 112 o 288 × 168), con el <b>tamaño y la posición</b> que indica <a href="#" onclick="aboutGo('ab-prop');return false;" style="color:#8e9bff">Dónde situar la geometría</a>: unos 3 frentes libres delante y al menos 10 detrás. La retícula sirve para medirlo.</li>
+      <li><b>Revise los indicadores de montaje</b>: bloqueo bajo y salida a varias veces el frente de la geometría.</li>
+      <li><b>Fije el fluido y la turbulencia.</b> Para edificios: «Fluido real · aire» con cierre automático.</li>
+      <li><b>Pulse Iniciar y espere a «Estable ✓»</b>, con τ ≥ 4.</li>
+      <li><b>Suba de malla</b> para el resultado final y vuelva a esperar la convergencia. La geometría no se pierde al cambiar de malla.</li>
+      <li><b>Compare variantes cambiando una sola cosa a la vez</b> (una ventana, un alero) y con todo lo demás idéntico.</li>
+      <li><b>Exporte</b> el PNG con el pie de parámetros, para que la imagen lleve consigo cómo se obtuvo.</li>
+    </ol>
+
+
+    <h4 id="ab-prop">Dónde situar la geometría</h4>
+    <p>La geometría necesita espacio libre alrededor para que los bordes del dominio no alteren el flujo: delante, para que el aire se desvíe de forma natural antes de llegar; detrás, para que la estela se desarrolle antes de tocar la salida; y por encima o a los lados, para no confinarla. Todas las distancias se miden en múltiplos del <b>frente</b>: la dimensión de la geometría perpendicular al viento. Es la que el panel usa en «Salida · ×frente».</p>
+    <figure><svg viewBox="0 0 700 330" role="img" aria-label="Proporciones en sección"><defs><marker id="ms" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" fill="#ff6b6b"/></marker><marker id="msw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,1 L9,5 L0,9 z" fill="#7fd1ff"/></marker><pattern id="msh" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="8" stroke="#6b6b7d" stroke-width="2"/></pattern></defs>
+<rect x="50" y="30" width="640" height="240" fill="#16202c" stroke="#3d4b5c" stroke-dasharray="5 4"/>
+<rect x="50" y="270" width="640" height="10" fill="url(#msh)"/><line x1="50" y1="270" x2="690" y2="270" stroke="#9a9aa8" stroke-width="2"/>
+<line x1="16" y1="60" x2="46" y2="60" stroke="#7fd1ff" stroke-width="1.6" marker-end="url(#msw)"/><line x1="16" y1="110" x2="46" y2="110" stroke="#7fd1ff" stroke-width="1.6" marker-end="url(#msw)"/><line x1="16" y1="160" x2="46" y2="160" stroke="#7fd1ff" stroke-width="1.6" marker-end="url(#msw)"/><line x1="16" y1="210" x2="46" y2="210" stroke="#7fd1ff" stroke-width="1.6" marker-end="url(#msw)"/><line x1="16" y1="250" x2="46" y2="250" stroke="#7fd1ff" stroke-width="1.6" marker-end="url(#msw)"/>
+<text x="44" y="20" fill="#7fd1ff" font-size="12" font-family="JetBrains Mono, monospace">Entrada</text>
+<text x="690" y="20" fill="#9a9aa8" font-size="12" text-anchor="end" font-family="JetBrains Mono, monospace">Salida</text>
+<text x="684" y="46" fill="#6b7a8c" font-size="11" text-anchor="end" font-family="JetBrains Mono, monospace">borde superior abierto</text>
+<rect x="170" y="230" width="80" height="40" fill="#e8e8ee"/>
+<line x1="156" y1="230" x2="156" y2="270" stroke="#ff6b6b" stroke-width="1.6" marker-start="url(#ms)" marker-end="url(#ms)"/><text x="144" y="255" fill="#ffb3b3" font-size="13" text-anchor="end" font-weight="700" font-family="JetBrains Mono, monospace">H</text>
+<line x1="50" y1="298" x2="170" y2="298" stroke="#ff6b6b" stroke-width="1.6" marker-start="url(#ms)" marker-end="url(#ms)"/><text x="110.0" y="318" fill="#ffb3b3" font-size="12" text-anchor="middle" font-family="JetBrains Mono, monospace">≥ 3H · ideal 5H</text>
+<line x1="250" y1="298" x2="690" y2="298" stroke="#ff6b6b" stroke-width="1.6" marker-start="url(#ms)" marker-end="url(#ms)"/><text x="470.0" y="318" fill="#ffb3b3" font-size="12" text-anchor="middle" font-family="JetBrains Mono, monospace">≥ 10H · ideal 15H  (deja desarrollar la estela)</text>
+<line x1="210.0" y1="30" x2="210.0" y2="230" stroke="#ff6b6b" stroke-width="1.6" marker-start="url(#ms)" marker-end="url(#ms)"/><text x="220.0" y="130.0" fill="#ffb3b3" font-size="12" font-family="JetBrains Mono, monospace">≥ 5H · ideal 6H</text>
+<text x="210.0" y="222" fill="#cfd3e0" font-size="11" text-anchor="middle" font-family="JetBrains Mono, monospace">L</text>
+<text x="262" y="262" fill="#9a9aa8" font-size="11" font-family="JetBrains Mono, monospace">suelo = borde inferior (no dibujar franja)</text>
+</svg>
+      <figcaption><b>Sección con suelo.</b> El frente es la altura H del edificio más alto. Esquema sin escala.</figcaption></figure>
+    <figure><svg viewBox="0 0 700 420" role="img" aria-label="Proporciones en planta"><defs><marker id="mp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" fill="#ff6b6b"/></marker><marker id="mpw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,1 L9,5 L0,9 z" fill="#7fd1ff"/></marker><pattern id="mph" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="8" stroke="#6b6b7d" stroke-width="2"/></pattern></defs>
+<rect x="50" y="30" width="640" height="330" fill="#16202c" stroke="#3d4b5c" stroke-dasharray="5 4"/>
+<line x1="50" y1="195.0" x2="690" y2="195.0" stroke="#ffd200" stroke-opacity=".45" stroke-dasharray="7 6"/>
+<line x1="16" y1="60" x2="46" y2="60" stroke="#7fd1ff" stroke-width="1.6" marker-end="url(#mpw)"/><line x1="16" y1="110" x2="46" y2="110" stroke="#7fd1ff" stroke-width="1.6" marker-end="url(#mpw)"/><line x1="16" y1="160" x2="46" y2="160" stroke="#7fd1ff" stroke-width="1.6" marker-end="url(#mpw)"/><line x1="16" y1="210" x2="46" y2="210" stroke="#7fd1ff" stroke-width="1.6" marker-end="url(#mpw)"/><line x1="16" y1="260" x2="46" y2="260" stroke="#7fd1ff" stroke-width="1.6" marker-end="url(#mpw)"/><line x1="16" y1="310" x2="46" y2="310" stroke="#7fd1ff" stroke-width="1.6" marker-end="url(#mpw)"/>
+<text x="44" y="20" fill="#7fd1ff" font-size="12" font-family="JetBrains Mono, monospace">Entrada</text>
+<text x="690" y="20" fill="#9a9aa8" font-size="12" text-anchor="end" font-family="JetBrains Mono, monospace">Salida</text>
+<text x="684" y="46" fill="#6b7a8c" font-size="11" text-anchor="end" font-family="JetBrains Mono, monospace">bordes laterales abiertos</text>
+<rect x="140" y="180" width="90" height="30" fill="#e8e8ee"/>
+<line x1="126" y1="180" x2="126" y2="210" stroke="#ff6b6b" stroke-width="1.6" marker-start="url(#mp)" marker-end="url(#mp)"/><text x="114" y="200.0" fill="#ffb3b3" font-size="13" text-anchor="end" font-weight="700" font-family="JetBrains Mono, monospace">W</text>
+<line x1="185.0" y1="30" x2="185.0" y2="180" stroke="#ff6b6b" stroke-width="1.6" marker-start="url(#mp)" marker-end="url(#mp)"/><text x="195.0" y="109.0" fill="#ffb3b3" font-size="12" font-family="JetBrains Mono, monospace">≥ 5W</text>
+<line x1="185.0" y1="210" x2="185.0" y2="360" stroke="#ff6b6b" stroke-width="1.6" marker-start="url(#mp)" marker-end="url(#mp)"/><text x="195.0" y="289.0" fill="#ffb3b3" font-size="12" font-family="JetBrains Mono, monospace">≥ 5W</text>
+<line x1="50" y1="382" x2="140" y2="382" stroke="#ff6b6b" stroke-width="1.6" marker-start="url(#mp)" marker-end="url(#mp)"/><text x="95.0" y="402" fill="#ffb3b3" font-size="12" text-anchor="middle" font-family="JetBrains Mono, monospace">≥ 3W · ideal 5W</text>
+<line x1="230" y1="382" x2="690" y2="382" stroke="#ff6b6b" stroke-width="1.6" marker-start="url(#mp)" marker-end="url(#mp)"/><text x="460.0" y="402" fill="#ffb3b3" font-size="12" text-anchor="middle" font-family="JetBrains Mono, monospace">≥ 10W · ideal 15W</text>
+<text x="242" y="187.0" fill="#ffe680" font-size="11" font-family="JetBrains Mono, monospace">eje central de la retícula</text>
+</svg>
+      <figcaption><b>Planta en terreno abierto.</b> El frente es el ancho W de la geometría perpendicular al viento, y la geometría va centrada sobre el eje amarillo de la retícula. Esquema sin escala.</figcaption></figure>
+    <table class="prop">
+      <tr><th>Distancia</th><th>Recomendado en esta app</th><th>Ideal (guías de CFD urbano)</th></tr>
+      <tr><td>Entrada → geometría</td><td>≥ 3 frentes</td><td>5 frentes</td></tr>
+      <tr><td>Geometría → salida</td><td>≥ 10 frentes</td><td>15 frentes</td></tr>
+      <tr><td>Encima (sección)</td><td>≥ 5 H</td><td>6 H</td></tr>
+      <tr><td>A cada lado (planta)</td><td>≥ 5 W</td><td>5 W</td></tr>
+    </table>
+    <p><b>Regla rápida para el tamaño.</b> Con L el largo de la geometría en la dirección del viento y F el frente, ambos en las cotas de la retícula, debe cumplirse:</p>
+    <ul>
+      <li>Recomendado: <code>13·F + L ≤ 60 m</code>, y además <code>F ≤ 5,8 m</code> en sección o <code>F ≤ 3,2 m</code> en planta.</li>
+      <li>Ideal: <code>20·F + L ≤ 60 m</code>.</li>
+    </ul>
+    <p><i>Ejemplo:</i> una sección de 27 m de largo con una torre de 7,3 m no cabe (13 × 7,3 + 27 = 122 m). A la mitad de tamaño (H ≈ 3,6 m, L ≈ 13,5 m) da 60 m: cabe empezando a unos 11 m de la entrada (3H), y la salida queda a unos 36 m (10H).</p>
+    <div class="gv">
+      <span class="r">Sitúe la geometría con la retícula antes de iniciar: borde de barlovento en la cota de 3 frentes y, en planta, centrada sobre el eje amarillo. Una geometría más pequeña necesita una malla más fina para seguir bien resuelta: procure que su elemento más delgado mida al menos 4 o 5 celdas. El panel avisa en ámbar cuando la salida queda a menos de 3 frentes, pero el objetivo es 10.</span></div>
+
+    <h4>Geometría</h4>
+    <div class="gv"><b class="n">Retícula de guías</b> · se muestra al abrir la app, mientras se importa un PNG y mientras se traza con el pincel, y desaparece al iniciar la simulación (reaparece al resetear). Tiene líneas finas cada 1 m, líneas marcadas cada 5 m con su cota, y un eje central amarillo. No se incluye en el PNG exportado.
+      <span class="r">Úsela para colocar el borde de la geometría a la distancia correcta de la entrada, centrar plantas sobre el eje y escalar un PNG a una medida conocida. Con imágenes sin escala, las cotas son nominales.</span></div>
+    <div class="gv"><b class="n">Pincel</b> · clic izquierdo dibuja muro, clic derecho borra. El grosor va de 1 a 256 px de la geometría, que se guarda a 1 920 × 1 120 px; bajo el deslizador se indica a cuántas celdas de la malla equivale.
+      <span class="r">Trace muros de al menos una celda de grosor. Un trazo más fino se conserva, pero el solver lo representa con una celda de ancho.</span></div>
+    <div class="gv"><b class="n">Importar PNG</b> · los píxeles oscuros se vuelven muro; los claros y transparentes se ignoran. Antes de aplicar, la imagen se mueve, escala y rota; con Ctrl, el giro va en pasos de 5°.
+      <span class="r">Use dibujos en blanco y negro, sin textos, cotas ni tramas, que se leerían como muros. Las imágenes no traen escala, así que los metros de la simulación pasan a ser nominales.</span></div>
+    <div class="gv"><b class="n">Limpiar muros</b> borra solo la geometría y deja correr la simulación. <b class="n">Resetear</b> deja la app en blanco y conserva los parámetros.</div>
+
+    <h4>Simulación</h4>
+    <div class="gv"><b class="n">Iniciar / Reiniciar</b> · arranca la simulación. Con una simulación ya en curso, el mismo botón vuelve el flujo a cero conservando la geometría.
+      <span class="r">Reinicie después de cambiar la geometría de forma importante: el flujo viejo tarda en olvidarse y mezcla dos casos.</span></div>
+    <div class="gv"><b class="n">Pausar / Reanudar</b> detiene el cálculo sin perder el flujo, útil para observar o exportar un instante.</div>
+
+    <h4>Parámetros</h4>
+    <div class="gv"><b class="n">Tipo de dominio</b> · define qué hacen los bordes superior e inferior.
+      <br><i>Conducto / túnel</i>: ambos son pared. Para túneles, ductos o canales reales.
+      <br><i>Planta en terreno abierto</i>: ambos abiertos. Para plantas de edificios, manzanas y tramas urbanas.
+      <br><i>Sección con suelo</i>: piso pared, tapa abierta. Para cortes verticales: fachadas, cubiertas, ventilación cruzada en sección.
+      <span class="r">En conducto, mantenga el bloqueo por debajo del 5 %. En sección, no dibuje una franja de suelo: el borde inferior ya hace de suelo, y una franja crea una capa de aire frenado artificial que puede cambiar la conclusión.</span></div>
+    <div class="gv"><b class="n">Velocidad de entrada (U₀)</b> · velocidad uniforme del aire que entra por la izquierda, en m/s.
+      <span class="r">En modo «Reynolds objetivo» no cambia el patrón, solo escala las velocidades: use 8 m/s y lea los resultados como fracción de U₀. Velocidades bajas hacen la convergencia mucho más lenta; con 1 m/s se necesitan unas 8 veces más pasos que con 8 m/s.</span></div>
+    <div class="gv"><b class="n">Malla de cálculo</b> · número de celdas del solver, de 192 × 112 (22 000 celdas) a 960 × 560 (538 000). Más celdas dan estelas y bordes más finos, y el coste crece más rápido que el número de celdas.
+      <span class="r">Dibuje y converja en 192 × 112 o 288 × 168; suba a 384 × 224 o 576 × 336 para el resultado final. Reserve 768 × 448 y 960 × 560 para equipos potentes. Compare variantes siempre en la misma malla.</span></div>
+    <div class="gv"><b class="n">Viscosidad · modo</b> · cómo se decide la viscosidad del fluido.
+      <br><i>Régimen (Reynolds objetivo)</i>: usted fija el número de Reynolds, Re = U₀·L/ν, de 1 a 10⁷, y la app calcula la viscosidad a partir de la longitud característica L de la geometría. El tamaño del dibujo y la velocidad no cambian el régimen.
+      <br><i>Fluido real</i>: usted elige un fluido con su viscosidad tabulada (aire, agua, aceite, glicerina, miel) y el Reynolds resulta de ella.
+      <span class="r">Para edificios y ventilación use «Fluido real · aire»: todas las variantes usan el mismo fluido. Use «Reynolds objetivo» para docencia (de Re ≈ 1 a unos cientos se recorre la secuencia flujo reptante → vórtices adheridos → calle de von Kármán) o cuando la escala del dibujo sea desconocida. No lo use para comparar variantes que cambien el tamaño total del conjunto: L cambia y con ella la viscosidad, y cada variante quedaría simulada con un fluido distinto.</span></div>
+    <div class="gv"><b class="n">Cierre de turbulencia</b> · qué hacer con los remolinos más pequeños que una celda.
+      <br><i>Automático</i>: activa el modelo Smagorinsky por encima de Re ≈ 500 y lo apaga por debajo.
+      <br><i>Smagorinsky siempre</i>: añade una viscosidad turbulenta que actúa donde el flujo se cizalla con fuerza (bordes de cubierta, chorros, bordes de estela).
+      <br><i>Laminar</i>: sin modelo; solo actúan la viscosidad fijada y la difusión del esquema.
+      <span class="r">Use automático casi siempre. Use laminar para docencia a bajo Reynolds. Fuerce Smagorinsky si con un Reynolds moderado el Re de celda es alto y el flujo se ve errático. Para comprobar la solidez de una conclusión, corra el caso una vez con cada cierre: si responden igual (por qué ventana entra el aire, dónde recircula, qué variante ventila mejor), la conclusión es robusta.</span></div>
+    <div class="gv"><b class="n">Avance · pasos por fotograma</b> · cuántos pasos de cálculo se hacen entre dos dibujos. No cambia el resultado final.
+      <span class="r">Use 1 mientras dibuja o ajusta controles, y 2 o 4 cuando la geometría está lista y solo quiere llegar al estado estable.</span></div>
+
+    <h4>Visualización</h4>
+    <div class="gv"><b class="n">Campo</b> · <i>Velocidad</i>: magnitud del viento; zonas de aceleración, sombras de viento, zonas muertas. <i>Presión</i>: sobrepresión en barlovento y succión en sotavento y bordes; es lo que impulsa el aire a través de las aberturas. <i>Vorticidad</i>: giro del flujo; capas de cortante, remolinos y desprendimientos.
+      <span class="r">Para ventilación natural, mire la presión en las aberturas: el aire va de la presión alta a la baja. Para confort exterior, mire la velocidad.</span></div>
+    <div class="gv"><b class="n">Partículas, líneas de corriente y duración de estela</b> · las partículas trazan el recorrido del aire. Las «líneas de corriente» son en rigor trayectorias: coinciden con las líneas de corriente solo cuando el flujo es estable. La duración, de 0,2 a 2 s, ajusta el número de partículas para que el dibujo no se vuelva más lento.
+      <span class="r">Use estelas cortas mientras el flujo se asienta y estelas de 1 a 2 s para leer recorridos en el resultado estable. Con remolinos que se desprenden, una estela larga mezcla instantes distintos.</span></div>
+    <div class="gv"><b class="n">Vectores de velocidad</b> muestran dirección e intensidad en una retícula. <b class="n">Paleta</b>: «Viridis» y «Grises» son las más legibles e imprimibles; «Coolwarm» conviene para presión, porque separa positiva y negativa. <b class="n">Suavizar interpolación</b> difumina los bordes entre celdas; desactívelo para ver la resolución real de la malla.</div>
+    <div class="gv"><b class="n">Escala del campo</b> · los colores se normalizan por el percentil 99, no por el máximo, para que una sola celda extrema en una esquina no apague el resto del mapa.
+      <span class="r">Al comparar imágenes de dos variantes, tenga en cuenta que cada una tiene su propia escala: compare los valores de la leyenda, no solo los colores.</span></div>
+
+    <h4>Indicadores de Información</h4>
+    <div class="gv"><b class="n">Bloqueo</b> · porcentaje de la altura del dominio ocupado por la geometría.
+      <span class="r">Menos del 5 % en conducto. En planta y sección tolera más, pero por encima del 25 % los bordes todavía influyen en el resultado.</span></div>
+    <div class="gv"><b class="n">Salida · ×frente</b> · distancia de la geometría a la salida, en múltiplos de su frente.
+      <span class="r">Las guías piden unas 15 veces el frente. Por debajo de 3 la estela se corta en la salida; aleje la geometría de la salida o dibújela más pequeña.</span></div>
+    <div class="gv"><b class="n">Reynolds y Re de celda</b> · el Reynolds describe el régimen del cuerpo; el Re de celda indica si la malla lo resuelve.
+      <span class="r">Con Re de celda mayor que 2, la difusión numérica del esquema pesa más que la viscosidad fijada, y subir el Reynolds ya no cambia el resultado. No es un error, es el límite de la malla: para edificios con aire siempre ocurrirá.</span></div>
+    <div class="gv"><b class="n">Subpasos, Ritmo y ms</b> · el coste del cálculo: subpasos y ciclos de presión por paso, fotogramas y pasos por segundo, y milisegundos de solver, partículas y dibujo.
+      <span class="r">Si el ritmo cae por debajo de unos 15 fps, baje de malla, reduzca partículas o acorte las estelas.</span></div>
+
+    <h4>Convergencia</h4>
+    <div class="gv"><b class="n">Barridos (τ)</b> · cuántas veces ha recorrido el aire el dominio completo. <b class="n">Δ Vel. máx</b> · cuánto cambia el flujo entre pasos. <b class="n">Estado</b> · resume ambos. <b class="n">Falta para τ = 4</b> · tiempo estimado con la malla y el ritmo actuales.
+      <span class="r">No saque conclusiones antes de «Estable ✓» con τ ≥ 4: lo que se ve antes suele ser el remolino de arranque, no el resultado. Si hay desprendimiento periódico de vórtices, Δ oscila sin llegar a cero; ahí el criterio es que el patrón se repita.</span></div>
+
+    <h4>Exportar</h4>
+    <div class="gv"><b class="n">Resolución y pie de parámetros</b> · PNG de 1 920 a 5 760 px de ancho. El pie registra campo, malla, U₀, Reynolds, cierre y τ.
+      <span class="r">Mantenga el pie activado en imágenes de trabajo: sin él, una imagen no dice en qué condiciones se obtuvo. 3 840 px basta para láminas; 5 760 px necesita bastante memoria.</span></div>
+
+    <h4>Recomendaciones según el tipo de análisis</h4>
+    <div class="gv"><b class="n">Ventilación cruzada en sección</b> · sección con suelo, aire real, cierre automático, sin franja de suelo, geometría a la mitad de la altura del dominio o menos. Recuerde que las ventanas equivalen a franjas continuas en profundidad y que no hay efecto chimenea.</div>
+    <div class="gv"><b class="n">Planta urbana o de conjunto</b> · planta en terreno abierto, aire real, cierre automático. Busque sombras de viento, aceleraciones entre volúmenes y zonas muertas. En planta se exagera el efecto venturi entre volúmenes, porque en la realidad parte del aire escapa por encima.</div>
+    <div class="gv"><b class="n">Docencia de regímenes</b> · un cuerpo simple (círculo o cuadrado), conducto con bloqueo menor al 5 % o planta abierta, «Reynolds objetivo» de 1 a 300, cierre automático (laminar en ese rango), campo de vorticidad.</div>
+    <div class="gv"><b class="n">Comparación de alternativas</b> · misma malla, mismo dominio, mismo fluido, misma U₀ y misma posición; cambie solo el elemento en estudio y compare cuando ambas lleguen a «Estable ✓». Las diferencias relativas son confiables; los valores absolutos, no.</div>
+
+    <h3 id="ab-metodo">Metodología</h3>
     <p>Resuelve las ecuaciones de Navier-Stokes incompresibles en 2D mediante el <b>método de proyección de Chorin</b> sobre una <b>malla escalonada (MAC)</b>: las velocidades se almacenan en las caras de cada celda y la presión y los escalares en los centros, lo que elimina de raíz el desacople par-impar (patrón de tablero de ajedrez) del campo de presión.</p>
     <ul>
       <li><b>Advección:</b> esquema <b>MUSCL de segundo orden</b> con limitador van Leer (TVD), en forma de flujos sobre la malla escalonada. Sustituye al upwind de primer orden y reduce a la cuarta parte la difusión numérica, que era lo que emborronaba capas de cortante y acortaba las estelas.</li>
@@ -474,13 +635,13 @@ input[type=range]{ width:100%; accent-color:var(--accent); }
       <li>La geometría 2D puede dibujarse con un pincel medido en píxeles de la geometría o importarse desde un PNG (píxeles oscuros = muro), y el resultado exportarse en PNG de alta resolución con pie de parámetros opcional.</li>
     </ul>
 
-    <h3>Alcances</h3>
+    <h3 id="ab-alcance">Alcances</h3>
     <ul>
       <li>Exploración <b>cualitativa</b> de patrones de flujo: estelas, zonas de recirculación, sombras de viento, aceleración entre obstáculos y distribución relativa de presión.</li>
       <li>Apoyo a la intuición de diseño bioclimático y ventilación natural en <b>etapa temprana</b>, comparación rápida de configuraciones, y docencia de conceptos de mecánica de fluidos.</li>
     </ul>
 
-    <h3>Restricciones</h3>
+    <h3 id="ab-restr">Restricciones</h3>
     <ul>
       <li><b>Es bidimensional:</b> no captura efectos 3D (flujo sobre/bajo cuerpos, vórtices tridimensionales, estratificación). No sustituye un CFD 3D validado (RANS/LES) ni mediciones.</li>
       <li>La <b>difusión numérica</b> del esquema sigue existiendo, solo que es mucho menor. Fija un techo práctico al Reynolds representable: por encima de Re de celda ≈ 2, subir la viscosidad ya no cambia el resultado. La ventana útil va de Re ≈ 1 a unos pocos cientos, que es donde vive la secuencia clásica (reptante → vórtices adheridos → von Kármán → estela desordenada). <b>No</b> alcanza el Re ≈ 10⁶ del viento real a escala urbana.</li>
@@ -494,7 +655,7 @@ input[type=range]{ width:100%; accent-color:var(--accent); }
       <li>La fidelidad depende de la resolución de malla elegida y de la calidad de la geometría importada.</li>
     </ul>
 
-    <h3>¿Cómo sé que hay convergencia?</h3>
+    <h3 id="ab-conv">¿Cómo sé que hay convergencia?</h3>
     <p>Los indicadores del panel miden <b>convergencia temporal</b>: que el campo de flujo deja de cambiar y alcanza un estado estacionario. No es la convergencia interna del solver de presión ni exactitud cuantitativa, sino la respuesta a «¿ya se estabilizó el flujo?». Hay convergencia cuando se cumplen <b>a la vez</b>:</p>
     <ul>
       <li><b>Δ Vel. máx → ~0 y se mantiene:</b> el cambio relativo de la velocidad máxima entre fotogramas cae por debajo de ~0,1 %. Es el indicador central.</li>
@@ -504,7 +665,7 @@ input[type=range]{ width:100%; accent-color:var(--accent); }
     <p>Confirmación visual: el campo de color se ve congelado entre fotogramas, la estela dejó de crecer y las líneas de corriente ya no cambian de forma.</p>
     <p><b>Matices importantes:</b> Δ vigila un solo escalar (la velocidad máxima global), así que es un indicio fuerte, no una garantía local completa. Si el flujo es intrínsecamente inestable (desprendimiento periódico de vórtices), Δ puede no llegar a cero sino oscilar de forma regular: ahí la convergencia es <b>estadística</b> (amplitud y periodo repetibles), no Δ = 0. Y recuerde: <b>estacionariedad ≠ exactitud</b> — que el campo deje de cambiar no hace los valores cuantitativamente certificables.</p>
 
-    <h3>Novedades de la versión 2.1</h3>
+    <h3 id="ab-nov">Novedades de la versión 2.1</h3>
     <ul>
       <li><b>Corrección:</b> el modo «Planta en terreno abierto» y el de sección usan ahora los 10 ciclos V previstos para bordes abiertos. Antes la app forzaba 4 en todos los casos y la presión quedaba mal resuelta, con oscilaciones que no eran físicas.</li>
       <li><b>Geometría maestra</b> independiente de la malla (ver Metodología): bajar a una malla ligera para converger y volver a subir ya no pierde tabiques ni vanos finos.</li>
@@ -513,6 +674,8 @@ input[type=range]{ width:100%; accent-color:var(--accent); }
       <li><b>Duración de estela</b> ajustable de 0,2 a 2 s. El número de partículas se ajusta para mantener constante el total de puntos dibujados, de modo que estelas largas no reducen la fluidez.</li>
       <li><b>Rendimiento:</b> el panel se actualiza a 5 Hz y solo escribe lo que cambia; la escala de color y la vorticidad se calculan una vez por fotograma y solo para el campo visible; el solver usa máscaras precalculadas de caras sólidas; el lienzo principal deja de forzarse a CPU; las partículas usan búferes circulares y una interpolación menos por paso.</li>
       <li><b>Medición:</b> «Ritmo» muestra fotogramas por segundo reales y pasos de solver por segundo por separado (antes el contador de FPS contaba pasos), y una fila nueva da los milisegundos de solver, partículas y render.</li>
+      <li><b>Retícula de guías</b> con cotas cada 5 m sobre el lienzo, visible antes de iniciar, al importar y al trazar.</li>
+      <li><b>Guía de uso</b> en esta ventana, con un gráfico de las proporciones para situar la geometría: conceptos y recomendaciones para cada control, flujo de trabajo y configuraciones según el tipo de análisis. La rotación de un PNG importado admite pasos de 5° con Ctrl.</li>
       <li><b>Interfaz:</b> los interruptores del panel responden al clic (antes no cambiaban de estado); el panel se reordenó; el pie del PNG exportado ya no incluye barra de escala ni dimensiones del dominio, coherente con la escala nominal.</li>
     </ul>
 
@@ -1769,6 +1932,47 @@ function drawInitialScreen() {
     ctx.drawImage(fieldCanvas, 0, 0, canvas.width, canvas.height);
 }
 
+// ---------- retícula de líneas guía ----------
+// Visible antes de iniciar la simulación, durante la importación de un PNG y
+// mientras se traza con el pincel. Líneas finas cada 1 m, marcadas cada 5 m
+// con su cota. Las cotas son las del dominio nominal de 60 × 35 m: con una
+// imagen importada sin escala sirven como referencia de posición y proporción.
+// No se incluye en el PNG exportado.
+function drawGrid(g, W, H) {
+    const sx = W / WIDTH_M, sy = H / HEIGHT_M;
+    const lw = Math.max(1, W / 2000);
+    // Cada línea va con un halo oscuro debajo: sobre el fondo negro inicial no
+    // se nota, y sobre un campo de color claro mantiene la retícula legible.
+    const lines = (step, skip5, halo, color, width) => {
+        g.beginPath();
+        for (let m = step; m < WIDTH_M; m += step) if (!skip5 || m % 5) { const x = Math.round(m * sx) + 0.5; g.moveTo(x, 0); g.lineTo(x, H); }
+        for (let m = step; m < HEIGHT_M; m += step) if (!skip5 || m % 5) { const y = Math.round(H - m * sy) + 0.5; g.moveTo(0, y); g.lineTo(W, y); }
+        g.strokeStyle = halo; g.lineWidth = width + 2 * lw; g.stroke();
+        g.strokeStyle = color; g.lineWidth = width; g.stroke();
+    };
+    g.save();
+    lines(1, true, 'rgba(0,0,0,0.10)', 'rgba(255,255,255,0.13)', lw);
+    lines(5, false, 'rgba(0,0,0,0.30)', 'rgba(255,255,255,0.42)', 1.5 * lw);
+    // eje central horizontal, útil para centrar plantas
+    const yc = Math.round(H / 2) + 0.5, d = Math.max(8, W / 150);
+    g.beginPath(); g.moveTo(0, yc); g.lineTo(W, yc);
+    g.setLineDash([d, d * 0.7]);
+    g.strokeStyle = 'rgba(0,0,0,0.35)'; g.lineWidth = 4 * lw; g.stroke();
+    g.strokeStyle = 'rgba(255,214,0,0.80)'; g.lineWidth = 2 * lw; g.stroke();
+    g.setLineDash([]);
+    // cotas cada 5 m
+    const fs = Math.max(11, Math.round(W / 95));
+    g.font = `600 ${fs}px 'JetBrains Mono', monospace`;
+    g.lineJoin = 'round'; g.lineWidth = Math.max(3, fs / 4);
+    g.strokeStyle = 'rgba(0,0,0,0.75)'; g.fillStyle = 'rgba(255,255,255,0.88)';
+    const label = (t, x, y) => { g.strokeText(t, x, y); g.fillText(t, x, y); };
+    g.textBaseline = 'bottom'; g.textAlign = 'center';
+    for (let m = 5; m < WIDTH_M; m += 5) label(m + ' m', m * sx, H - fs * 0.35);
+    g.textBaseline = 'middle'; g.textAlign = 'left';
+    for (let m = 5; m < HEIGHT_M; m += 5) label(m + ' m', fs * 0.45, H - m * sy);
+    g.restore();
+}
+
 // El circulo guia muestra el tamano REAL del pincel sobre el dominio, no un
 // radio fijo: es lo que hace util el deslizador.
 function drawBrushCursor() {
@@ -1879,6 +2083,7 @@ function render() {
         const curKey = showBrushCursor ? (brushCursorX + ',' + brushCursorY) : 'off';
         if (initialDirty || curKey !== lastCurKey) {
             drawInitialScreen();
+            drawGrid(ctx, canvas.width, canvas.height);
             drawBrushCursor();
             initialDirty = false;
             lastCurKey = curKey;
@@ -1891,6 +2096,7 @@ function render() {
         smooth: el('smoothField').checked,
         particles: true
     });
+    if (mouseDown && !importMode) drawGrid(ctx, canvas.width, canvas.height);   // trazando con la simulación en marcha
 
     drawBrushCursor();
 }
@@ -2008,6 +2214,10 @@ function start() {
     updateRunButtons();
 }
 function openAbout() { document.getElementById("aboutModal").style.display = "flex"; }
+function aboutGo(id) {
+    const t = document.getElementById(id);
+    if (t && t.scrollIntoView) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 function closeAbout() { document.getElementById("aboutModal").style.display = "none"; }
 function stop() {                    // alterna Pausar / Reanudar
     if (!hasStarted) return;
@@ -2240,6 +2450,11 @@ let importDragStartScale = 1;
 let importDragStartAngle = 0;
 let importDragStartImgX = 0;
 let importDragStartImgY = 0;
+// Rotación con Ctrl: el ángulo se ajusta a múltiplos de 5°. Se guarda la última
+// posición del puntero para reaplicar el ajuste al pulsar o soltar Ctrl sin
+// mover el ratón.
+const ROT_SNAP = 5 * Math.PI / 180;
+let importLastPos = null;
 
 const overlayCanvas = document.getElementById('overlayCanvas');
 const overlayCtx = overlayCanvas.getContext('2d');
@@ -2301,6 +2516,7 @@ function ptDist(ax, ay, bx, by) {
 }
 
 function getOverlayPos(e) {
+    if (e._pos) return e._pos;
     const rect = overlayCanvas.getBoundingClientRect();
     return {
         x: (e.clientX - rect.left) * (overlayCanvas.width  / rect.width),
@@ -2327,6 +2543,7 @@ function drawHandle(cx, cy, color, icon, iconColor) {
 function renderImportOverlay() {
     overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
     if (!importMode || !importImage) return;
+    if (hasStarted) drawGrid(overlayCtx, overlayCanvas.width, overlayCanvas.height);
 
     const w = importImage.width  * importScale;
     const h = importImage.height * importScale;
@@ -2364,8 +2581,10 @@ function renderImportOverlay() {
     drawHandle(wh.rotate.x, wh.rotate.y, '#ff6b35', '↺', '#fff');
 
     // HUD text
-    const deg = (importAngle * 180 / Math.PI).toFixed(1);
-    const info = `  Escala: ${importScale.toFixed(2)}x   Ángulo: ${deg}°   ✥ mover  ⤡ escalar  ↺ rotar`;
+    let degN = (importAngle * 180 / Math.PI) % 360;
+    if (degN > 180) degN -= 360; else if (degN <= -180) degN += 360;
+    const deg = degN.toFixed(1);
+    const info = `  Escala: ${importScale.toFixed(2)}x   Ángulo: ${deg}°   ✥ mover  ⤡ escalar  ↺ rotar (Ctrl: pasos de 5°)`;
     overlayCtx.fillStyle = 'rgba(0,0,0,0.65)';
     overlayCtx.fillRect(0, 0, overlayCanvas.width, 24);
     overlayCtx.fillStyle = '#ffd200';
@@ -2436,11 +2655,25 @@ function onOverlayMouseMove(e) {
         const a0 = Math.atan2(importDragStartY - cy, importDragStartX - cx);
         const a1 = Math.atan2(pos.y - cy, pos.x - cx);
         importAngle = importDragStartAngle + (a1 - a0);
+        // Con Ctrl, ángulo absoluto en pasos de 5° (0°, 5°, 90°…), no
+        // incrementos de 5° sobre un ángulo arbitrario.
+        if (e.ctrlKey) importAngle = Math.round(importAngle / ROT_SNAP) * ROT_SNAP;
+        importLastPos = { x: pos.x, y: pos.y };
     }
     renderImportOverlay();
 }
 
+// Pulsar o soltar Ctrl a mitad de un giro actualiza el ajuste al momento.
+function onImportCtrl(e) {
+    if (e.key !== 'Control' || !importMode || !importDragging ||
+        importDragMode !== 'rotate' || !importLastPos) return;
+    onOverlayMouseMove({ clientX: 0, clientY: 0, ctrlKey: e.type === 'keydown', _pos: importLastPos });
+}
+window.addEventListener('keydown', onImportCtrl);
+window.addEventListener('keyup', onImportCtrl);
+
 function onOverlayMouseUp(e) {
+    importLastPos = null;
     importDragging = false;
     overlayCanvas.style.cursor = 'default';
 }
